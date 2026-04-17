@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "grad-backend"
+version = "0.0.1"
+description = "Graduation Project Advisor — backend"
+readme = "../README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Hesham Haroon" }]
+
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.32.1",
+  "pydantic==2.10.3",
+  "pydantic-settings==2.7.0",
+  "sqlalchemy[asyncio]==2.0.36",
+  "alembic==1.14.0",
+  "asyncpg==0.30.0",
+  "aiosqlite==0.20.0",
+  "redis==5.2.1",
+  "qdrant-client==1.16.1",
+  "celery[redis]==5.4.0",
+  "loguru==0.7.3",
+  "httpx==0.28.1",
+  "prometheus-client==0.21.1",
+  "itsdangerous==2.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.3.4",
+  "pytest-asyncio==0.25.0",
+  "pytest-cov==6.0.0",
+  "ruff==0.8.4",
+  "mypy==1.13.0",
+  "types-redis==4.6.0.20241004",
+  "httpx==0.28.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["api", "core", "ingestion"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "A", "C4", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "qdrant_client.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
