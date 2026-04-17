@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "grad-backend"
 version = "0.0.1"
 description = "Graduation Project Advisor — backend"
-readme = "../README.md"
+readme = {text = "Graduation Project Advisor backend.", content-type = "text/plain"}
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Hesham Haroon" }]
