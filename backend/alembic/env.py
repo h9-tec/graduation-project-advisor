@@ -18,8 +18,10 @@ if config.config_file_name is not None:
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
-# Placeholder; Phase 1 replaces with Base.metadata from core.db.models
-target_metadata = None
+from core.db.base import Base
+from core.db import models  # noqa: F401 — import side effect registers tables
+
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
