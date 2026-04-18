@@ -115,3 +115,37 @@ async def decr_refine_count(sid: str) -> int:
         await r.set(_refine_count_key(sid), "0", ex=_SESSION_TTL_SECONDS)
         return 0
     return count
+
+
+# ---------- Saved cards (ephemeral, per-session) ---------------------------
+
+def _saved_key(sid: str) -> str:
+    return f"sess:{sid}:saved"
+
+
+async def save_card_for_session(sid: str, card: dict[str, Any]) -> int:
+    """Store a full LeanCard payload under the session's saved set.
+
+    Uses a Redis hash keyed by card_id so the full payload survives the
+    session's 6h TTL even if the card rotates out of the active board.
+    Returns the new count of saved cards.
+    """
+    r = await get_redis()
+    cid = str(card.get("id") or "")
+    if not cid:
+        return int(await r.hlen(_saved_key(sid)))
+    await r.hset(_saved_key(sid), cid, json.dumps(card))
+    await r.expire(_saved_key(sid), _SESSION_TTL_SECONDS)
+    return int(await r.hlen(_saved_key(sid)))
+
+
+async def unsave_card_for_session(sid: str, card_id: str) -> int:
+    r = await get_redis()
+    await r.hdel(_saved_key(sid), card_id)
+    return int(await r.hlen(_saved_key(sid)))
+
+
+async def list_saved_cards(sid: str) -> list[dict[str, Any]]:
+    r = await get_redis()
+    rows = await r.hgetall(_saved_key(sid))
+    return [json.loads(v) for v in rows.values()]

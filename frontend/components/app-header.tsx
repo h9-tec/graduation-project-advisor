@@ -64,6 +64,16 @@ export function AppHeader({ locale }: { locale: string }) {
         <span>Grad · Advisor</span>
       </Link>
       <div className="flex items-center gap-2">
+        <Link
+          href={`/${locale}/saved`}
+          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest"
+          style={{
+            borderColor: "var(--color-border-subtle)",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          ♥ {t("saved")}
+        </Link>
         <div
           className="inline-flex overflow-hidden rounded-full border text-xs"
           style={{ borderColor: "var(--color-border-subtle)" }}

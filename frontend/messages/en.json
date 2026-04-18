@@ -1,7 +1,8 @@
 {
   "header": {
     "language": "Language",
-    "theme": "Theme"
+    "theme": "Theme",
+    "saved": "Saved"
   },
   "landing": {
     "eyebrow": "Grounded research · Production delivery",
@@ -78,6 +79,23 @@
     "error": "Something went wrong",
     "tryAgain": "Try again",
     "back": "Back"
+  },
+  "cardActions": {
+    "thumbsUp": "This fits me",
+    "thumbsDown": "Not for me",
+    "save": "Save",
+    "unsave": "Unsave"
+  },
+  "saved": {
+    "eyebrow": "Your shortlist",
+    "headline": "Saved ideas",
+    "subhead": "Ideas you've starred in this session. Toggle Compare to place up to three side by side.",
+    "empty": "You haven't saved anything yet. Go back to the board and tap the ♡ on a card.",
+    "backToBoard": "Back to the board",
+    "compare": "Compare",
+    "stopCompare": "Close compare",
+    "compareHint": "Pick up to 3 — selected cards stack side by side.",
+    "compareSelected": "{count} / 3 selected"
   },
   "refine": {
     "heading": "Refine",

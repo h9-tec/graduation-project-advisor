@@ -22,6 +22,12 @@ export function BoardView({
   const [historyDepth, setHistoryDepth] = useState(0);
 
   useEffect(() => {
+    // remember which session is "active" so /saved can find it
+    try {
+      localStorage.setItem("grad:last_session", sessionId);
+    } catch {
+      // ignore
+    }
     let cancelled = false;
     fetchCards(sessionId)
       .then((c) => {

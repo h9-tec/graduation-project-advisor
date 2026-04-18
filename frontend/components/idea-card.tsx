@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { LeanCard } from "@/lib/api";
+import { CardActions } from "@/components/card-actions";
 
 export function IdeaCard({
   locale,
@@ -114,7 +115,7 @@ export function IdeaCard({
         </span>
       </div>
 
-      <div className="mt-auto flex items-center">
+      <div className="mt-auto flex items-center justify-between gap-2">
         <Link
           href={`/${locale}/blueprint/${sessionId}/${card.id}`}
           className="group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all hover:translate-y-[-1px]"
@@ -128,6 +129,7 @@ export function IdeaCard({
             {locale === "ar" ? "←" : "→"}
           </span>
         </Link>
+        <CardActions sessionId={sessionId} cardId={card.id} />
       </div>
     </article>
   );

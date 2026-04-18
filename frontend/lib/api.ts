@@ -40,6 +40,8 @@ export type LeanCard = {
   research_hook: string;
   stack_hook: string;
   stars_estimate: number;
+  arxiv_url?: string | null;
+  github_url?: string | null;
 };
 
 export type Milestone = { weeks: string; goals: string[] };
@@ -131,3 +133,42 @@ export async function undoRefinement(
 }
 
 export const MAX_REFINEMENTS_PER_SESSION = 15;
+
+export type Reaction = "up" | "down";
+
+export async function postFeedback(
+  sessionId: string,
+  cardId: string,
+  reaction: Reaction,
+): Promise<{ feedback_id: string }> {
+  return postJSON("/api/v1/feedback", {
+    session_id: sessionId,
+    card_id: cardId,
+    reaction,
+  });
+}
+
+export async function listSaved(sessionId: string): Promise<{ cards: LeanCard[] }> {
+  return getJSON(`/api/v1/sessions/${sessionId}/saved`);
+}
+
+export async function saveCard(
+  sessionId: string,
+  cardId: string,
+): Promise<{ cards: LeanCard[] }> {
+  return postJSON(`/api/v1/sessions/${sessionId}/saved`, { card_id: cardId });
+}
+
+export async function unsaveCard(
+  sessionId: string,
+  cardId: string,
+): Promise<{ cards: LeanCard[] }> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/sessions/${sessionId}/saved/${cardId}`,
+    { method: "DELETE", cache: "no-store" },
+  );
+  if (!res.ok) {
+    throw new Error(`DELETE /saved/${cardId} failed: ${res.status}`);
+  }
+  return (await res.json()) as { cards: LeanCard[] };
+}

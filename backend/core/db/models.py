@@ -168,3 +168,37 @@ class ProjectCandidate(Base):
             f"<ProjectCandidate id={self.id} source={self.source} "
             f"arxiv={self.arxiv_id} github={self.github_url}>"
         )
+
+
+class Feedback(Base):
+    """A student's thumbs up/down on a card shown in their session.
+
+    Append-only; one row per click. `session_id` + `card_id` + `reaction`
+    forms a natural uniqueness key but we don't enforce it — a student
+    changing their mind is a legitimate new event.
+    """
+
+    __tablename__ = "feedbacks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        _UUIDType(), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    card_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    reaction: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    # "up" | "down"
+    profile_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        _JSONType(), nullable=False, default=dict
+    )
+    card_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        _JSONType(), nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Feedback sid={self.session_id} card={self.card_id} "
+            f"reaction={self.reaction}>"
+        )
