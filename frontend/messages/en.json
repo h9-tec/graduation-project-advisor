@@ -52,7 +52,7 @@
     "cardStars": "★",
     "difficultyLabel": "Difficulty",
     "rankLabel": "#",
-    "loading": "Generating ideas (gpt-4o-mini is working)…",
+    "loading": "Generating ideas…",
     "empty": "No cards yet. Start from the landing page."
   },
   "blueprint": {
@@ -71,7 +71,7 @@
     "standOut": "How to stand out",
     "papers": "Paper references",
     "repos": "Repo references",
-    "loading": "Expanding with gpt-4o — takes ~5 seconds…",
+    "loading": "Expanding into a full blueprint…",
     "error": "Couldn't expand this card. Go back and try again."
   },
   "common": {
