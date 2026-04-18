@@ -398,4 +398,4 @@ Private / TBD.
 
 ## Credits
 
-Built by Hesham Haroon. Part of a broader Arabic-first AI systems portfolio — see `al-muwatta-ai`, `dhakira`, `thrya` for related work.
+Built by Hesham Haroon. Part of a broader Arabic-first AI systems portfolio — see `al-muwatta-ai` and `dhakira` for related work.
