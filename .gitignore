@@ -40,3 +40,12 @@ redis-data/
 # Logs
 *.log
 logs/
+
+# Playwright artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+
+# Stray screenshots from dev sessions
+/ar-board.png
+/en-board.png
