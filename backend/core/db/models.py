@@ -170,6 +170,74 @@ class ProjectCandidate(Base):
         )
 
 
+class IngestionRun(Base):
+    """One row per scheduled ingestion job execution."""
+
+    __tablename__ = "ingestion_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        _UUIDType(), primary_key=True, default=uuid.uuid4
+    )
+    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    # "hf_daily_papers" | "arxiv" | "github_trending"
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    # "running" | "succeeded" | "failed" | "partial"
+    total_fetched: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    new_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    embedded_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    dead_lettered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<IngestionRun source={self.source} status={self.status}>"
+
+
+class DeadLetter(Base):
+    """Records that failed to ingest after all retries.
+
+    Stored as the raw source payload + error + retry count so the operator
+    can replay a specific batch later without re-crawling.
+    """
+
+    __tablename__ = "dead_letter"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        _UUIDType(), primary_key=True, default=uuid.uuid4
+    )
+    source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    stage: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    # "fetch" | "normalize" | "embed" | "upsert"
+    external_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    # arxiv_id / github full_name / etc.
+    payload: Mapped[dict[str, Any]] = mapped_column(
+        _JSONType(), nullable=False, default=dict
+    )
+    error: Mapped[str] = mapped_column(String, nullable=False)
+    retries: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<DeadLetter source={self.source} stage={self.stage} ext={self.external_id}>"
+
+
 class Feedback(Base):
     """A student's thumbs up/down on a card shown in their session.
 
