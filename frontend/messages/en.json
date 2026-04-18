@@ -1,0 +1,14 @@
+{
+  "landing": {
+    "headline": "Find your graduation project.",
+    "subhead": "Grounded in real papers. Grounded in real repos.",
+    "cta": "Start now",
+    "langToggleLabel": "Language",
+    "themeToggleLabel": "Theme"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "tryAgain": "Try again"
+  }
+}

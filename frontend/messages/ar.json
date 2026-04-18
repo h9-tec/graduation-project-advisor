@@ -1,0 +1,14 @@
+{
+  "landing": {
+    "headline": "اختر مشروع تخرجك بثقة.",
+    "subhead": "مبني على أبحاث حقيقية ومستودعات حقيقية.",
+    "cta": "ابدأ الآن",
+    "langToggleLabel": "اللغة",
+    "themeToggleLabel": "المظهر"
+  },
+  "common": {
+    "loading": "جاري التحميل…",
+    "error": "حدث خطأ ما",
+    "tryAgain": "حاول مرة أخرى"
+  }
+}
