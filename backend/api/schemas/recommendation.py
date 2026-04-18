@@ -14,6 +14,8 @@ class LeanCard(BaseModel):
     research_hook: str
     stack_hook: str
     stars_estimate: int
+    arxiv_url: str | None = None
+    github_url: str | None = None
 
 
 class RecommendationsResponse(BaseModel):

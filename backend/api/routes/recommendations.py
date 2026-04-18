@@ -112,6 +112,8 @@ async def create_recommendations(profile: IntentProfile) -> RecommendationsRespo
                         else f"Paper: {meta.get('arxiv_url') or ''}"
                     ),
                     stars_estimate=int(meta.get("stars") or 0),
+                    arxiv_url=meta.get("arxiv_url"),
+                    github_url=meta.get("github_url"),
                 )
             )
 
@@ -210,6 +212,27 @@ async def expand_card(session_id: str, card_id: str) -> BlueprintResponse:
         bp = Blueprint.model_validate(raw)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"LLM returned malformed blueprint: {exc}") from exc
+
+    # Inject the card's real paper/repo URLs as top references — RAG-path only.
+    # (Falls through harmlessly when the card came from the pure-LLM path.)
+    from api.schemas.blueprint import Ref
+
+    real_paper_url = card.get("arxiv_url")
+    real_github = card.get("github_url")
+    if real_paper_url:
+        bp.paper_refs = [
+            Ref(
+                title=card.get("title") or "Reference paper",
+                note=f"Authoritative reference: {real_paper_url}",
+            )
+        ] + [r for r in bp.paper_refs if r.title and r.title != card.get("title")]
+    if real_github:
+        bp.repo_refs = [
+            Ref(
+                name=real_github.replace("https://github.com/", ""),
+                note=f"Reference implementation: {real_github}",
+            )
+        ] + [r for r in bp.repo_refs if r.name and r.name not in real_github]
 
     await save_blueprint(session_id, card_id, bp.model_dump())
     return BlueprintResponse(card_id=card_id, blueprint=bp)
