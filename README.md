@@ -30,7 +30,6 @@ Under the hood it's an **indexed-RAG pipeline** over a live corpus:
 
 Wrapped in a clean-theme editorial UI that deliberately doesn't look like another ChatGPT clone.
 
-> **Why not Papers-With-Code?** Meta sunset PWC on 2025-07-24. We pivoted to **HuggingFace Daily Papers** — which already carries `githubRepo`, `ai_summary`, and `ai_keywords` per record — plus arXiv (REST) and GitHub Trending (scraped via Crawl4AI). Addendum spec linked above.
 
 ---
 
