@@ -1,14 +1,103 @@
 {
+  "header": {
+    "language": "Language",
+    "theme": "Theme"
+  },
   "landing": {
-    "headline": "Find your graduation project.",
-    "subhead": "Grounded in real papers. Grounded in real repos.",
-    "cta": "Start now",
+    "eyebrow": "Grounded research · Production delivery",
+    "headline": "Find the graduation project that's yours.",
+    "subhead": "Five grounded ideas, each with a paper and a repo. Expand any one into a production-grade blueprint your supervisor will actually read.",
+    "cta": "Start · 40 seconds",
+    "stats": {
+      "papers": "arXiv + HF Papers",
+      "repos": "Papers-With-Code + GitHub",
+      "languages": "Arabic + English, RTL-aware"
+    },
     "langToggleLabel": "Language",
     "themeToggleLabel": "Theme"
+  },
+  "onboard": {
+    "eyebrow": "Onboarding",
+    "headline": "Tell us where you are and where you want to go.",
+    "subhead": "All of this stays in your session. No account required.",
+    "language": "Response language",
+    "domains": "Areas that excite you",
+    "domainsHint": "Pick 1–4. You can refine these later.",
+    "skill": "Your current skill level",
+    "months": "Months you can dedicate",
+    "monthsSuffix": "months",
+    "team": "Team size",
+    "teamSuffix": "people",
+    "stacks": "Preferred stacks (comma-separated)",
+    "stacksPlaceholder": "python, pytorch, fastapi, next.js",
+    "interests": "What specifically excites you?",
+    "interestsPlaceholder": "e.g. I want to build something with Arabic LLMs that actually deploys",
+    "avoid": "Topics to avoid (comma-separated)",
+    "avoidPlaceholder": "blockchain, cryptocurrency",
+    "submit": "Generate 5 ideas",
+    "submitting": "Thinking…",
+    "required": "Pick at least one area.",
+    "error": "Something went wrong — try again.",
+    "back": "Back"
+  },
+  "board": {
+    "eyebrow": "Your board",
+    "headline": "Five ideas, ranked for you.",
+    "subhead": "Tap any card to expand it into a full blueprint. You can re-run with tweaked inputs from the form.",
+    "tryAgain": "Start over",
+    "cardExpand": "Expand blueprint",
+    "cardDomains": "Domains",
+    "cardWeeks": "wks",
+    "cardStars": "★",
+    "difficultyLabel": "Difficulty",
+    "rankLabel": "#",
+    "loading": "Generating ideas (gpt-4o-mini is working)…",
+    "empty": "No cards yet. Start from the landing page."
+  },
+  "blueprint": {
+    "eyebrow": "Blueprint",
+    "back": "← Back to board",
+    "problem": "Problem statement",
+    "whyMatters": "Why it matters",
+    "inScope": "In scope",
+    "outOfScope": "Out of scope",
+    "arch": "Suggested architecture",
+    "stack": "Tech stack",
+    "milestones": "Milestones",
+    "datasets": "Datasets",
+    "metrics": "Evaluation metrics",
+    "risks": "Risks & mitigations",
+    "standOut": "How to stand out",
+    "papers": "Paper references",
+    "repos": "Repo references",
+    "loading": "Expanding with gpt-4o — takes ~5 seconds…",
+    "error": "Couldn't expand this card. Go back and try again."
   },
   "common": {
     "loading": "Loading…",
     "error": "Something went wrong",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "back": "Back"
+  },
+  "domains": {
+    "nlp": "NLP",
+    "cv": "Computer Vision",
+    "rl": "Reinforcement Learning",
+    "mlops": "MLOps",
+    "agents": "Agents",
+    "rag": "RAG",
+    "robotics": "Robotics",
+    "audio": "Audio / Speech",
+    "timeseries": "Time Series",
+    "security": "Security",
+    "iot": "IoT",
+    "web": "Web",
+    "mobile": "Mobile",
+    "data_engineering": "Data Engineering"
+  },
+  "skill": {
+    "beginner": "Beginner",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced"
   }
 }
