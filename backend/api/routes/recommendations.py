@@ -4,6 +4,7 @@ import re
 import uuid
 
 from fastapi import APIRouter, HTTPException
+from loguru import logger
 
 from api.schemas.blueprint import Blueprint, BlueprintResponse
 from api.schemas.intent import IntentProfile
@@ -15,6 +16,8 @@ from core.llm.prompts import (
     rec_system_prompt,
     rec_user_prompt,
 )
+from core.llm.prompts_rag import rerank_system_prompt, rerank_user_prompt
+from core.recommendation.retrieve import pre_score, retrieve
 from core.session_store import (
     load_cards,
     load_profile,
@@ -25,6 +28,9 @@ from core.session_store import (
 
 router = APIRouter(prefix="/api/v1", tags=["recommendations"])
 
+# Minimum Qdrant hits before we trust retrieval; below this we fall back to pure LLM.
+RETRIEVAL_FLOOR = 8
+
 
 def _slug(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
@@ -34,9 +40,89 @@ def _slug(value: str) -> str:
 @router.post("/recommendations", response_model=RecommendationsResponse)
 async def create_recommendations(profile: IntentProfile) -> RecommendationsResponse:
     session_id = uuid.uuid4().hex
-
     await save_profile(session_id, profile.model_dump())
 
+    # ---------- RAG path: retrieve → pre-score → LLM re-rank -----------
+    hits = await retrieve(profile, top_k=50)
+    logger.info(f"retrieve: {len(hits)} hits from Qdrant (floor={RETRIEVAL_FLOOR})")
+
+    if len(hits) >= RETRIEVAL_FLOOR:
+        top = pre_score(hits, profile, keep=20)
+        cands = [
+            {
+                "id": c.point_id,
+                "title": c.payload.get("title", ""),
+                "summary": c.payload.get("summary", ""),
+                "stars": c.payload.get("stars", 0),
+                "ai_keywords": c.payload.get("ai_keywords") or [],
+                "github_url": c.payload.get("github_url"),
+                "arxiv_url": (
+                    f"https://arxiv.org/abs/{c.payload['arxiv_id']}"
+                    if c.payload.get("arxiv_id")
+                    else None
+                ),
+            }
+            for c in top
+        ]
+        rag_system = rerank_system_prompt(profile.language)
+        rag_user = rerank_user_prompt(profile.model_dump(), cands)
+
+        try:
+            raw = await chat_json(
+                tier="fast",
+                system=rag_system,
+                user=rag_user,
+                max_tokens=1600,
+                temperature=0.3,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502, detail=f"LLM re-rank failed: {exc}"
+            ) from exc
+
+        valid_ids = {c["id"] for c in cands}
+        ranked_items = raw.get("ranked", [])
+        cards: list[LeanCard] = []
+        id_to_meta = {c["id"]: c for c in cands}
+        id_to_payload = {c.point_id: c.payload for c in top}
+
+        for i, item in enumerate(ranked_items[:5], start=1):
+            cid = str(item.get("id", ""))
+            if cid not in valid_ids:
+                logger.warning(f"re-rank hallucinated id={cid}, dropping")
+                continue
+            meta = id_to_meta[cid]
+            payload = id_to_payload.get(cid) or {}
+            cards.append(
+                LeanCard(
+                    id=cid,
+                    rank=int(item.get("rank", i)),
+                    title=meta["title"],
+                    domains=(payload.get("ai_keywords") or [])[:3]
+                    or payload.get("domains", []),
+                    why_fit=str(item.get("why_fit", "")),
+                    est_weeks=int(item.get("est_weeks", profile.months_available * 4)),
+                    difficulty_verdict=str(
+                        item.get("difficulty_verdict", profile.skill_level)
+                    ),
+                    research_hook=(meta.get("summary") or "")[:200],
+                    stack_hook=(
+                        f"Reference: {meta['github_url']}"
+                        if meta.get("github_url")
+                        else f"Paper: {meta.get('arxiv_url') or ''}"
+                    ),
+                    stars_estimate=int(meta.get("stars") or 0),
+                )
+            )
+
+        if cards:
+            await save_cards(session_id, [c.model_dump() for c in cards])
+            logger.info(f"rag: returned {len(cards)} cards (session {session_id})")
+            return RecommendationsResponse(session_id=session_id, cards=cards)
+
+        logger.warning("rag: all re-rank ids were invalid, falling back to pure-LLM")
+
+    # ---------- Fallback: pure-LLM (Phase-0 behavior) ------------------
     system = rec_system_prompt(profile.language)
     user = rec_user_prompt(profile.model_dump())
 
