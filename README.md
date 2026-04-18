@@ -1,127 +1,199 @@
 # Graduation Project Advisor
 
-Helps Egyptian CS / AI / SWE undergraduates pick a production-grade graduation project grounded in real research papers and real GitHub repos. Bilingual (Arabic + English) web app.
+**Helps Egyptian CS / AI / SWE undergraduates pick a production-grade graduation project — grounded in real research papers and real GitHub repos, delivered as ranked idea cards that expand into supervisor-ready blueprints.**
 
-> Design spec: [`docs/superpowers/specs/2026-04-17-graduation-project-advisor-design.md`](docs/superpowers/specs/2026-04-17-graduation-project-advisor-design.md)
-> Current implementation phase: **Phase 0 — Foundations** (scaffold only; no recommendations yet)
+Bilingual from day one. Arabic-first UX, English-parity toggle, full RTL. Locally-typed, locally-served; no tracking, no accounts, no PII.
+
+<p align="center">
+  <img src="docs/assets/landing-ar-dark.png" alt="Arabic landing page, dark manuscript theme" width="820" />
+</p>
+
+> **Status:** Phase 0 foundations **+** functional LLM-backed MVP shipped. Retrieval over live arXiv / PWC / GitHub (Phase 1–2) is next.
+> **Design spec:** [`docs/superpowers/specs/2026-04-17-graduation-project-advisor-design.md`](docs/superpowers/specs/2026-04-17-graduation-project-advisor-design.md)
+> **Implementation plan (Phase 0):** [`docs/superpowers/plans/2026-04-17-phase-0-foundations.md`](docs/superpowers/plans/2026-04-17-phase-0-foundations.md)
+
+---
+
+## The problem
+
+Every senior-year CS student in Egypt hits the same wall: *what should my graduation project be?* The usual answers are shallow ("build a todo app with auth"), disconnected from research (no paper grounding), or overwhelming (raw arXiv feeds, endless GitHub trending). Supervisors don't have the hours to hand-tailor ideas to every student's background, timeline, and interests.
+
+## The solution
+
+One form. Five minutes. Five grounded project ideas, each with a research hook and a stack hook, ranked for your skill level and time budget. Any card expands — with one click — into a full production-grade blueprint: problem statement, scope boundaries, suggested architecture, milestones by week, datasets, evaluation metrics, risks, and how to stand out. Bilingual reasoning (technical terms stay English, the "why this fits you" is in the student's language).
+
+Under the hood it's a classic indexed-RAG pipeline *in progress* (Qdrant + multilingual embeddings + LLM re-rank) wrapped in a clean-theme editorial UI that deliberately doesn't look like another ChatGPT clone.
+
+---
+
+## Screens
+
+### Onboarding — the only form in the app
+
+Domain chips, skill level, months available, team size, preferred stack, interests free-text, topics to avoid. Estimated completion: **under a minute**. No tracking, no login, no account. The profile lives in the server session (Redis, 6-hour TTL) and is discarded when you close the tab.
+
+<p align="center">
+  <img src="docs/assets/onboard-ar-dark.png" alt="Arabic onboarding form, dark theme" width="820" />
+</p>
+
+### The board — ranked cards, not a chat transcript
+
+Five cards, asymmetric layout, every card grounds itself on a named research area and a named stack. Click any card to expand into a full blueprint. Intentionally *not* a chat UI — students don't need to "prompt engineer" their own grad project.
+
+<p align="center">
+  <img src="docs/assets/board-ar-light.png" alt="Arabic board of 5 ideas, light theme" width="820" />
+</p>
+
+### Blueprint — supervisor-ready
+
+Every blueprint has: problem statement, why it matters, in-scope / out-of-scope, suggested architecture, tech stack, milestones by week (typically 6–7 phases across 10–16 weeks), datasets with URLs, evaluation metrics, risks & mitigations, "how to stand out" (3+ differentiation ideas), and real paper / repo references.
+
+---
+
+## Architecture
+
+```
+┌────────────────────┐   REST    ┌──────────────────────┐   HTTP/gRPC   ┌──────────┐
+│  Next.js 15 web    │◄────────► │   FastAPI recommender│◄────────────► │  Qdrant  │
+│  ar / en + RTL     │  JSON     │   stateless          │               │  (1.16)  │
+└────────────────────┘           └──────────┬───────────┘               └──────────┘
+                                            │
+                            ┌───────────────┼────────────────┐
+                            ▼               ▼                ▼
+                      ┌──────────┐   ┌────────────┐   ┌─────────────────┐
+                      │ Postgres │   │   Redis    │   │  LLM gateway    │
+                      │ sessions │   │ sessions + │   │                 │
+                      │ feedback │   │ rate limit │   │  azure  │ ollama│
+                      └──────────┘   └────────────┘   └─────────────────┘
+                            ▲
+                            │ populates (Phase 1+)
+                   ┌────────┴─────────┐
+                   │ Celery workers   │
+                   │ arXiv · HF       │
+                   │ PWC · GitHub     │
+                   └──────────────────┘
+```
+
+Three clean subsystems with narrow interfaces:
+
+1. **Ingestion** *(Celery beat, nightly, Phase 1+)* — arXiv + HF Papers + Papers-With-Code + GitHub → normalized `ProjectCandidate` records → multilingual embeddings → Qdrant.
+2. **Recommender** *(FastAPI, stateless)* — form → filter → retrieval → LLM re-rank → lean cards. One-click blueprint expansion with the stronger LLM tier. Redis-backed session cache.
+3. **Web app** *(Next.js 15 App Router)* — landing + onboarding + board + blueprint. Bilingual / RTL. Light, dark, and system themes with FOUC-safe boot.
+
+---
 
 ## Stack
 
-- **Backend:** Python 3.12 · FastAPI · SQLAlchemy (async) · Alembic · Pydantic · Celery · Loguru
-- **Data:** PostgreSQL · Qdrant · Redis
-- **Frontend:** Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind v4 · next-intl · Biome
-- **AI:** Azure OpenAI (`gpt-4o`, `gpt-4o-mini`) · local sentence-transformers embeddings
-- **Deploy:** Docker Compose on a single VPS (Caddy for TLS in prod)
+| Layer | Tech |
+|---|---|
+| **Backend** | Python 3.12 · FastAPI · SQLAlchemy 2 (async) · Alembic · Pydantic v2 · Loguru |
+| **Workers** | Celery 5 · Celery beat (nightly ingestion jobs, Phase 1+) |
+| **Data** | PostgreSQL 16 · Qdrant 1.16 · Redis 7 |
+| **LLM — cloud** | Azure OpenAI `gpt-4o-mini` (fast tier) · `gpt-4o` (smart tier) |
+| **LLM — local** | Ollama via OpenAI-compat: `llama3.2:3b` (fast) · `aya:8b` (multilingual smart) |
+| **Embeddings** | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (local CPU, 384-d) |
+| **Frontend** | Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind v4 · next-intl · Biome |
+| **Type system** | Server-side Pydantic, frontend `lib/api.ts` mirrors the schemas |
+| **Container runtime** | Docker + Docker Compose |
+| **CI** | GitHub Actions: `backend-ci.yml` and `frontend-ci.yml` (lint · typecheck · test) |
+
+---
 
 ## Quick start
 
-Requirements: Docker 27+, Docker Compose v2, and (optionally) Python 3.12 and Node 22+ for running backend/frontend outside containers.
+Requirements: Docker 27+, Docker Compose v2. Optional: Python 3.12 and Node 22+ for running backend/frontend outside containers.
 
 ```bash
 git clone <repo-url> graduation_project
 cd graduation_project
 cp .env.example .env
+# Edit .env and paste your Azure OpenAI endpoint + key (or flip LLM_PROVIDER=ollama)
 docker compose up -d --build
 ```
 
-Wait ~30 seconds for healthchecks, then open:
+Wait ~30 seconds for healthchecks, then:
 
-- Frontend: <http://localhost:3000/en> or <http://localhost:3000/ar>
-- Backend health: <http://localhost:8010/healthz>
-- Backend metrics: <http://localhost:8010/metrics>
-- Qdrant dashboard: <http://localhost:6333/dashboard>
+| URL | What |
+|---|---|
+| <http://localhost:3000/en> | English landing |
+| <http://localhost:3000/ar> | Arabic landing (RTL) |
+| <http://localhost:8010/healthz> | Backend liveness |
+| <http://localhost:8010/metrics> | Prometheus metrics |
+| <http://localhost:8010/docs> | FastAPI Swagger UI |
+| <http://localhost:6333/dashboard> | Qdrant dashboard |
 
-**Port note:** Host-side ports are remapped so the compose stack does not clash with local Postgres/Redis/other services most developers already run:
+---
 
-| Service | Host port | Container port |
-|---|---|---|
-| Postgres | 5433 | 5432 |
-| Qdrant HTTP | 6333 | 6333 |
-| Qdrant gRPC | 6334 | 6334 |
-| Redis | 6380 | 6379 |
-| Backend (FastAPI) | 8010 | 8000 |
-| Frontend (Next.js) | 3000 | 3000 |
+## Host port cheat sheet
 
-Inter-service calls inside the compose network use the container ports (e.g. `DATABASE_URL=postgresql+asyncpg://grad:grad@postgres:5432/grad`).
+Compose deliberately remaps host ports off the usual defaults to avoid clashing with a dev's existing local Postgres / Redis:
 
-## Dev workflow
+| Service | Host port | Container port | Why remapped |
+|---|---|---|---|
+| Postgres | `5433` | 5432 | Dev likely has a 5432 already |
+| Redis | `6380` | 6379 | Dev likely has a 6379 already |
+| Backend (FastAPI) | `8010` | 8000 | 8000/8001 were bound on the test machine |
+| Qdrant HTTP | `6333` | 6333 | — |
+| Qdrant gRPC | `6334` | 6334 | — |
+| Frontend (Next.js) | `3000` | 3000 | — |
 
-### Backend (outside Docker)
+**Inter-service calls inside the compose network always use the container ports** (e.g. `postgres:5432`, `redis:6379`, `qdrant:6333`).
 
-```bash
-python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -e 'backend/[dev]'
-cd backend
-DATABASE_URL="sqlite+aiosqlite:///./grad.db" alembic upgrade head
-uvicorn api.main:app --reload
-```
-
-Run tests:
-
-```bash
-cd backend
-pytest tests/unit -v
-```
-
-Lint + typecheck:
-
-```bash
-cd backend
-ruff check . && ruff format --check . && mypy api core ingestion
-```
-
-### Frontend (outside Docker)
-
-```bash
-cd frontend
-corepack pnpm install            # (corepack ships with Node 16+; no global pnpm needed)
-corepack pnpm dev
-```
-
-Run tests:
-
-```bash
-cd frontend
-corepack pnpm test
-```
-
-Lint + typecheck + build:
-
-```bash
-cd frontend
-corepack pnpm lint && corepack pnpm typecheck && corepack pnpm build
-```
+---
 
 ## LLM providers
 
-Default is Azure OpenAI (fast + smart deployments). A local Ollama
-fallback is wired through the same gateway — flip `LLM_PROVIDER=ollama`
-in `.env`.
+The gateway abstracts which model you're talking to. Flip `LLM_PROVIDER` in `.env`.
 
-**Fast tier** — `llama3.2:3b` (1.9 GB, ~13 s / 5 cards on an RTX 5060).
-**Smart tier** — `aya:8b` (4.6 GB, multilingual incl Arabic, ~50 s / blueprint).
+### Azure OpenAI *(default, recommended for production)*
 
-Both are already in `~/.ollama/models` on this machine. Pull others with:
-
-```bash
-ollama pull llama3.2:3b
-ollama pull aya:8b
+```env
+LLM_PROVIDER=azure
+AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com/
+AZURE_OPENAI_API_KEY=<your-key>
+AZURE_OPENAI_API_VERSION=2024-10-21
+AZURE_OPENAI_DEPLOYMENT_FAST=gpt-4o-mini
+AZURE_OPENAI_DEPLOYMENT_SMART=gpt-4o
 ```
 
-### Running with Ollama
+Measured latencies against a real Egyptian-CS-student profile:
 
-**Option A — backend on host (recommended for local dev)**
+| Call | Model | Time | Output |
+|---|---|---|---|
+| `/recommendations` (5 cards) | `gpt-4o-mini` | ~3 s | ~1.5 KB JSON |
+| `/sessions/{sid}/cards/{id}/expand` | `gpt-4o` | ~6 s | ~3–5 KB JSON |
+
+### Ollama *(local, no Azure spend, no rate limits)*
+
+```env
+LLM_PROVIDER=ollama
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL_FAST=llama3.2:3b
+OLLAMA_MODEL_SMART=aya:8b
+```
+
+`aya:8b` is Cohere's multilingual model and produces strong Arabic output alongside English. Measured on an RTX 5060 Laptop (8 GB VRAM):
+
+| Call | Model | Time |
+|---|---|---|
+| `/recommendations` (5 cards) | `llama3.2:3b` | ~13 s |
+| `/expand` (full blueprint) | `aya:8b` | ~50 s |
+
+**Running with Ollama — recommended path**
 
 ```bash
-# Stop the dockerized backend
-docker compose stop backend
+# 1. Keep compose infra running (postgres, redis, qdrant, frontend)
+docker compose up -d postgres redis qdrant frontend
 
-# Start Ollama bound to localhost
+# 2. Start Ollama on the host
 OLLAMA_HOST=127.0.0.1:11434 ollama serve &
 
-# Run uvicorn on the host, pointing at the compose-exposed infra ports
+# 3. Stop the dockerized backend; run uvicorn on the host so it can
+#    reach Ollama (docker→host traffic needs an iptables allow-rule
+#    on this machine, so the host-run path is the tested one).
+docker compose stop backend
 cd backend && source ../.venv/bin/activate
+
 DATABASE_URL="postgresql+asyncpg://grad:grad@localhost:5433/grad" \
 REDIS_URL="redis://localhost:6380/0" \
 QDRANT_URL="http://localhost:6333" \
@@ -131,70 +203,199 @@ FRONTEND_ORIGIN="http://localhost:3000" \
 uvicorn api.main:app --port 8010 --reload
 ```
 
-**Option B — backend in docker with Ollama in docker**
+> **Heads-up on docker→host networking:** if you run the backend inside compose with `LLM_PROVIDER=ollama`, the container needs to reach the host's Ollama. On Docker Desktop this works out of the box via `host.docker.internal`. On bare Ubuntu with default firewall rules, docker→host traffic is silently dropped — run the backend on the host (as above) or add the iptables allow-rule for your bridge network.
 
-Only works if the host's firewall allows docker→host traffic or Ollama
-is inside the same compose network. The default compose file does NOT
-ship an Ollama container (the image is ~1.8 GB). To add one, uncomment
-the commented service block in `docker-compose.yml`.
+---
 
-If your host allows docker→host traffic and Ollama runs on the host,
-set `OLLAMA_URL=http://host.docker.internal:11434` in `.env` and make
-sure `ollama serve` is bound to `0.0.0.0:11434`:
+## Design philosophy
+
+The design direction has a name: **Manuscript meets Production**. Three ideas collide on purpose.
+
+- **Papers** — editorial, rational typography. Fraunces (Latin) + Lemonada (Arabic). Size jumps are 3×, not 1.5×.
+- **Code** — terminal minimalism. JetBrains Mono for domain chips, arXiv IDs, stars, milestone weeks. No filler chrome.
+- **Arabic-first** — dominant warm ink on cream (light) or warm ink on near-black (dark). A single sharp accent — manuscript gold `#c48a1e`. Direction-aware icons, logical CSS properties throughout. Arabic line-height 1.9 vs Latin 1.55 because Arabic needs the room.
+
+It's deliberately *not* a ChatGPT clone. The recommendation screen is a **board of idea cards**, not a chat transcript. Chat refinement sits quietly in a dismissable bottom rail (Phase 3). The blueprint expands into its own full-page artifact — the kind of document a student can hand to their supervisor.
+
+Every color is a CSS custom property with a semantic name (`--color-canvas`, `--color-accent`, `--color-signal-code`, `--color-signal-paper`). Dark and light themes share the same semantic map; swapping is a `data-theme` attribute on `<html>` and a FOUC-safe boot script.
+
+---
+
+## Dev workflow
+
+### Backend (outside Docker)
 
 ```bash
-OLLAMA_HOST=0.0.0.0:11434 ollama serve &
+python -m venv .venv
+source .venv/bin/activate
+pip install -e 'backend/[dev]'
+cd backend
+DATABASE_URL="sqlite+aiosqlite:///./grad.db" alembic upgrade head
+uvicorn api.main:app --reload
 ```
 
-This machine has iptables rules (unmodifiable without sudo) that drop
-docker→host traffic, so Option A is the tested path here.
+Tests, lint, typecheck:
 
-## Layout
+```bash
+cd backend
+pytest tests/unit -v                          # 8 tests, async-aware
+ruff check . && ruff format --check .
+mypy api core ingestion                       # strict mode
+```
+
+### Frontend (outside Docker)
+
+```bash
+cd frontend
+corepack pnpm install              # corepack ships with Node 16+; no global pnpm needed
+corepack pnpm dev                  # Next.js dev server on :3000
+corepack pnpm test                 # Vitest — 3 tests, jsdom
+corepack pnpm lint                 # Biome
+corepack pnpm typecheck            # tsc --noEmit, strict
+corepack pnpm build                # production Next.js build
+```
+
+### End-to-end (the real flow)
+
+The app has been manually validated end-to-end with Playwright in both locales. The golden path is:
+
+1. `GET /{locale}` — landing
+2. Click CTA → `GET /{locale}/onboard`
+3. Fill form, click submit → `POST /api/v1/recommendations` (~3 s with Azure, ~13 s with Ollama)
+4. Redirect to `/{locale}/board/{sid}` — render 5 cards
+5. Click "Expand blueprint" on a card → `POST /api/v1/sessions/{sid}/cards/{id}/expand` (~6 s / ~50 s)
+6. Render full blueprint with 13 sections
+
+---
+
+## Project layout
 
 ```
-backend/    FastAPI app, Celery workers, Alembic migrations, ingestion pipelines (later phases)
-frontend/   Next.js 15 App Router, bilingual (ar/en) with RTL
-docs/       Specs and plans under docs/superpowers/
-.github/    CI workflows
-docker-compose.yml   Local dev infra: postgres, qdrant, redis, backend, celery, frontend
+graduation_project/
+├── backend/
+│   ├── api/
+│   │   ├── main.py                        FastAPI factory + lifespan + CORS
+│   │   ├── routes/recommendations.py      POST /recommendations, GET cards, POST expand
+│   │   └── schemas/                       IntentProfile · LeanCard · Blueprint (pydantic)
+│   ├── core/
+│   │   ├── settings.py                    Pydantic Settings — all env in one place
+│   │   ├── logging.py                     Loguru JSON sink + bind_context helper
+│   │   ├── session_store.py               Redis-backed profile + cards + blueprint cache
+│   │   └── llm/
+│   │       ├── azure.py                   AsyncAzureOpenAI JSON-mode helper
+│   │       ├── ollama.py                  AsyncOpenAI pointed at Ollama /v1
+│   │       ├── gateway.py                 provider-neutral chat_json(tier='fast'|'smart')
+│   │       └── prompts.py                 bilingual rec + blueprint system/user prompts
+│   ├── ingestion/celery_app.py            Celery skeleton (Phase 1+ populates beat schedule)
+│   ├── alembic/                           migrations (starts with an empty initial migration)
+│   ├── tests/unit/                        8 tests — settings, logging, health, metrics
+│   ├── Dockerfile                         multi-stage, non-root app user
+│   └── pyproject.toml                     hatchling, ruff, mypy strict, pytest-asyncio
+├── frontend/
+│   ├── app/[locale]/
+│   │   ├── layout.tsx                     bilingual html/dir, FOUC-safe theme boot
+│   │   ├── page.tsx                       asymmetric editorial landing
+│   │   ├── onboard/page.tsx               OnboardForm (client)
+│   │   ├── board/[sid]/page.tsx           BoardView (client; fetches cards)
+│   │   └── blueprint/[sid]/[cardId]/      BlueprintView (client; fetches expansion)
+│   ├── components/
+│   │   ├── app-header.tsx                 locale + theme toggles (localStorage)
+│   │   ├── onboard-form.tsx               domain chips · skill · sliders · textarea
+│   │   ├── idea-card.tsx                  lean card with varied masonry heights
+│   │   ├── blueprint-view.tsx             full 13-section artifact
+│   │   └── atmospheric-bg.tsx             SVG noise + corner radial gradient
+│   ├── lib/
+│   │   ├── api.ts                         typed fetch client (IntentProfile → LeanCard → Blueprint)
+│   │   └── fonts.ts                       next/font — Fraunces · DM Sans · Lemonada · JetBrains Mono
+│   ├── messages/{ar,en}.json              all i18n strings
+│   ├── app/globals.css                    manuscript color tokens (light + dark)
+│   ├── middleware.ts                      next-intl locale routing (/ar, /en)
+│   └── i18n.ts                            next-intl config
+├── docker-compose.yml                     postgres · qdrant · redis · backend · celery × 2 · frontend
+├── docs/
+│   ├── assets/                            screenshots
+│   └── superpowers/{specs,plans}/         design spec + Phase 0 plan
+├── .github/workflows/                     backend-ci.yml · frontend-ci.yml
+├── .env.example                           all required env keys, commented
+└── README.md
 ```
+
+---
+
+## Roadmap
+
+| Phase | Status | Gist |
+|---|---|---|
+| **0. Foundations** | Done | Repo scaffold, compose, FastAPI skeleton, bilingual Next.js, CI |
+| **+. Functional MVP** | Done | Azure + Ollama LLM gateway, onboarding form, LLM-backed board + blueprint |
+| **1. Ingestion backbone** | Next | arXiv (OAI-PMH) + HF Papers + embeddings → Qdrant |
+| **2. Linking + corpus** | Planned | PWC paper↔repo linking, GitHub search API, LLM enrichment |
+| **3. True RAG pipeline** | Planned | Deterministic pre-score → LLM re-rank over retrieved candidates |
+| **4. Chat refinement** | Planned | "more RL, less infra" → profile diff → new board |
+| **5. Feedback + save** | Planned | Thumbs up/down, saved cards, compare-3 view |
+| **6. Polish + production** | Planned | Caddy TLS, VPS deploy, UptimeRobot, LLM eval harness |
+
+---
 
 ## Troubleshooting
 
-**`docker compose up` fails with "port already allocated"**
-Something on the host is already using 5432 / 6379 / 8000. The compose file remaps to 5433 / 6380 / 8010 to avoid that. If you still have a clash (e.g. another dev is using 8010), edit `docker-compose.yml` and update the port mapping.
+**`docker compose up` fails with `port already allocated`**
+Something on the host already uses 5432 / 6379 / 8000. Compose remaps to 5433 / 6380 / 8010 — if those clash too, edit `docker-compose.yml`.
 
 **Qdrant healthcheck fails with `wget: not found`**
-The qdrant image does not include wget. The compose file uses `bash </dev/tcp/localhost/6333` for the healthcheck instead. If that also fails in your qdrant image, remove the `healthcheck:` block and change dependent services to `depends_on: qdrant: { condition: service_started }`.
+The qdrant image doesn't ship `wget`. Compose uses `bash </dev/tcp/localhost/6333` instead. If that fails in your fork, drop the healthcheck and use `depends_on: qdrant: { condition: service_started }`.
 
-**Celery beat container crashes with `Permission denied: 'celerybeat-schedule'`**
-The container runs as a non-root `app` user, and `/app` is not writable by `app`. The compose file passes `--schedule=/tmp/celerybeat-schedule` so beat writes to `/tmp` instead.
+**Celery beat crashes with `Permission denied: 'celerybeat-schedule'`**
+The container runs as the non-root `app` user and `/app` is read-only to that user. Compose already passes `--schedule=/tmp/celerybeat-schedule` to work around it.
 
-**Backend fails with `ModuleNotFoundError: No module named 'core'`**
-You ran `uvicorn` from the repo root. Either `cd backend` first, or run `uvicorn api.main:app --app-dir backend`.
+**Backend errors with `ModuleNotFoundError: No module named 'core'`**
+You ran `uvicorn` from the repo root. Either `cd backend` first, or `uvicorn api.main:app --app-dir backend`.
 
-**Frontend hot reload doesn't pick up changes inside Docker**
-Ensure the bind mount `./frontend:/app` is in place and `/app/node_modules` is an anonymous volume (not a bind mount). On macOS, Next.js HMR can be slow with bind mounts — prefer running the frontend on the host.
+**Frontend hot reload is sluggish inside Docker on macOS**
+Known Next.js + macOS bind-mount issue. Run the frontend on the host instead: `cd frontend && corepack pnpm dev`.
 
-**Arabic text appears without proper direction**
-Check that `<html dir="rtl" lang="ar">` is rendered — open DevTools on `/ar`. If missing, confirm `frontend/middleware.ts` is loading and that you visited `/ar` directly (not just `/`).
+**Arabic text renders LTR**
+Confirm you're visiting `/ar` directly (not `/`) and that `<html dir="rtl" lang="ar">` is present in DevTools. If missing, check `frontend/middleware.ts` is loading.
 
-**Azure OpenAI 401**
-Put real credentials in `.env.local` — `.env.example` intentionally ships empty. Phase 0 does not call Azure, so you can leave these blank until Phase 1.
+**`Hydration failed because the server rendered HTML didn't match the client`**
+A browser extension (most commonly Grammarly, LastPass, ColorZilla) is injecting attributes onto `<body>`. Already handled: `<body suppressHydrationWarning>`.
 
 **`corepack enable` fails without sudo**
-Use `corepack pnpm <cmd>` directly instead — it runs pnpm through corepack without needing to enable the global shim.
+Use `corepack pnpm <cmd>` directly — it runs pnpm through corepack without needing to enable the global shim.
 
-## Current phase exit criteria (Phase 0)
+**Ollama requests from dockerized backend time out**
+Default Ubuntu iptables blocks docker→host traffic. Run the backend on the host (see "Running with Ollama"), or add an allow-rule for your compose bridge to `host:11434`.
 
-- [x] `docker compose up -d --build` brings all services to `healthy` (verified during scaffold)
-- [x] `curl http://localhost:8010/healthz` returns `{"status":"ok","env":"local"}`
-- [x] `curl http://localhost:8010/metrics` returns Prometheus text
-- [x] <http://localhost:3000/en> and <http://localhost:3000/ar> both render 200 with correct `dir`
-- [x] `cd backend && pytest tests/unit` passes (8 tests)
-- [x] `cd frontend && corepack pnpm test` passes (3 tests)
-- [x] CI workflows defined and YAML-valid (run on first push to GitHub)
+---
+
+## Tests
+
+```
+backend/  8 tests (async-aware, asyncio_mode=auto)
+frontend/ 3 tests (Vitest + Testing Library, jsdom)
+```
+
+CI runs lint + typecheck + tests on every PR touching `backend/**` or `frontend/**`.
+
+---
+
+## Security notes
+
+- Anonymous sessions only — no passwords, no OAuth, no PII beyond an optional email (Phase 6).
+- `.env` is gitignored; `.env.example` ships placeholders only.
+- CORS locked to `FRONTEND_ORIGIN`, never `*`.
+- All user text (`interests_text`, chat refinements) is length-capped and wrapped in `<untrusted_input>` markers in the system prompt.
+- Pydantic validates everything at the API boundary; Zod-adjacent typing in the frontend.
+- No user-supplied URLs are fetched server-side (SSRF guard).
+
+---
 
 ## License
 
 Private / TBD.
+
+---
+
+## Credits
+
+Built by Hesham Haroon. Part of a broader Arabic-first AI systems portfolio — see `al-muwatta-ai`, `dhakira`, `thrya` for related work.
