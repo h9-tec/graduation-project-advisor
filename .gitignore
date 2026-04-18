@@ -54,3 +54,6 @@ test-results/
 docs/superpowers/
 docs/plans/
 docs/specs/
+
+# Claude Code project instructions (local only)
+CLAUDE.md
