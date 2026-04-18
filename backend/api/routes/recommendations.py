@@ -13,12 +13,13 @@ from api.schemas.refine import RefineRequest, RefineResponse
 from core.llm.gateway import chat_json
 from core.llm.prompts import (
     blueprint_system_prompt,
-    blueprint_user_prompt,
+    blueprint_user_prompt_grounded,
     rec_system_prompt,
     rec_user_prompt,
 )
 from core.llm.prompts_rag import rerank_system_prompt, rerank_user_prompt
 from core.llm.prompts_refine import refine_system_prompt, refine_user_prompt
+from core.recommendation.context import build_blueprint_context
 from core.recommendation.retrieve import pre_score, retrieve
 from core.session_store import (
     MAX_REFINEMENTS_PER_SESSION,
@@ -215,16 +216,22 @@ async def expand_card(session_id: str, card_id: str) -> BlueprintResponse:
         raise HTTPException(status_code=404, detail="Card not found in session")
 
     language = profile.get("language", "en")
+    context = await build_blueprint_context(card)
+    logger.info(
+        f"expand: card={card_id} abstract_len={len(context.get('abstract') or '')} "
+        f"readme_len={len(context.get('readme_excerpt') or '')} "
+        f"ai_keywords={len(context.get('ai_keywords') or [])}"
+    )
     system = blueprint_system_prompt(language)
-    user = blueprint_user_prompt(card, profile)
+    user = blueprint_user_prompt_grounded(context, profile)
 
     try:
         raw = await chat_json(
             tier="smart",
             system=system,
             user=user,
-            max_tokens=2800,
-            temperature=0.5,
+            max_tokens=3200,
+            temperature=0.4,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"LLM call failed: {exc}") from exc

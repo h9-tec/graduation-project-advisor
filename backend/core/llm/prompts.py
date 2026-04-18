@@ -56,17 +56,85 @@ embedding, etc.) in English. Be concrete — no filler.
 Return strict JSON only."""
 
 
-def blueprint_user_prompt(card: dict[str, Any], profile: dict[str, Any]) -> str:
+def blueprint_user_prompt(
+    card: dict[str, Any], profile: dict[str, Any]
+) -> str:
+    """Legacy entry point — delegates to the richer prompt so existing
+    callers that pass only the card payload still work."""
+    return blueprint_user_prompt_grounded(card, profile)
+
+
+def blueprint_user_prompt_grounded(
+    ctx: dict[str, Any], profile: dict[str, Any]
+) -> str:
+    """Full-grounded blueprint prompt.
+
+    `ctx` carries the card + the *real* paper abstract + *real* README
+    excerpt + AI-generated keywords + organization + published_year. The
+    LLM is instructed to anchor every section in this material; any
+    ambiguity should fall back to "details to refine with your supervisor"
+    rather than confabulation.
+    """
+    paper_block = ""
+    if ctx.get("abstract") or ctx.get("ai_summary"):
+        paper_block = "\n".join(
+            filter(
+                None,
+                [
+                    "--- ACTUAL PAPER (ground truth) ---",
+                    f"Title: {ctx.get('title')}",
+                    f"arXiv URL: {ctx.get('arxiv_url') or 'n/a'}",
+                    f"Published year: {ctx.get('published_year') or 'unknown'}",
+                    f"Organization: {ctx.get('organization') or 'unknown'}",
+                    "Abstract:",
+                    ctx.get("abstract") or "",
+                    "AI-generated summary:" if ctx.get("ai_summary") else "",
+                    ctx.get("ai_summary") or "",
+                    f"Keywords: {', '.join(ctx.get('ai_keywords') or []) or 'n/a'}",
+                ],
+            )
+        ).strip()
+
+    repo_block = ""
+    readme = ctx.get("readme_excerpt") or ""
+    if readme:
+        repo_block = (
+            "--- ACTUAL REPO README (ground truth, first ~4 KB) ---\n"
+            f"GitHub URL: {ctx.get('github_url')}\n"
+            f"Language: {ctx.get('code_language') or 'unknown'}\n"
+            f"Stars: {ctx.get('stars') or 0}\n\n"
+            f"{readme}"
+        )
+
+    blocks = [b for b in (paper_block, repo_block) if b]
+    grounding = "\n\n".join(blocks) if blocks else (
+        "--- No upstream abstract or README was retrievable — ground the "
+        "blueprint in the research_hook below and flag assumptions explicitly. ---\n"
+        f"Research hook: {ctx.get('research_hook') or ''}\n"
+        f"Stack hook: {ctx.get('stack_hook') or ''}"
+    )
+
     return f"""Student intent profile:
 {profile}
 
 Card being expanded:
-- Title: {card.get("title")}
-- Domains: {card.get("domains")}
-- Research hook: {card.get("research_hook")}
-- Stack hook: {card.get("stack_hook")}
-- Estimated weeks: {card.get("est_weeks")}
-- Difficulty: {card.get("difficulty_verdict")}
+- Title: {ctx.get("title")}
+- Estimated weeks: {ctx.get("est_weeks")}
+- Difficulty: {ctx.get("difficulty_verdict")}
+
+{grounding}
+
+Rules:
+- Anchor every section in the grounding above. Quote or paraphrase the
+  abstract/README where relevant. If a detail is not in the material,
+  say "details to refine with your supervisor" — do NOT invent.
+- Milestones must map to concrete tasks the student can execute against
+  the real repo (train the model, fine-tune on dataset X, write a
+  FastAPI wrapper, etc.). No generic filler.
+- `paper_refs[0]` MUST be the actual paper URL given above when present.
+- `repo_refs[0]` MUST be the actual GitHub URL given above when present.
+- Keep technical terms (RAG, LLM, transformer, embedding, PyTorch,
+  FastAPI, etc.) in English.
 
 Return JSON with this exact shape:
 {{
@@ -74,25 +142,24 @@ Return JSON with this exact shape:
   "why_it_matters": "<2-3 sentences>",
   "in_scope": ["<bullet>", "<bullet>", ...],
   "out_of_scope": ["<bullet>", "<bullet>", ...],
-  "suggested_architecture": "<markdown, 2-4 paragraphs, may include component names>",
+  "suggested_architecture": "<markdown, 2-4 paragraphs, name the actual components from the README / paper>",
   "tech_stack": ["<tool>", "<tool>", ...],
   "milestones_by_week": [
-    {{"weeks": "1-2", "goals": ["<goal>", "<goal>"]}},
-    {{"weeks": "3-4", "goals": ["<goal>"]}},
+    {{"weeks": "1-2", "goals": ["<concrete task grounded in the repo>"]}},
     ...
   ],
   "datasets": [
-    {{"name": "<dataset name>", "url": "<real or typical URL>", "note": "<1 sentence>"}}
+    {{"name": "<dataset from the paper/README>", "url": "<URL if known>", "note": "<1 sentence>"}}
   ],
-  "evaluation_metrics": ["<metric>", "<metric>"],
+  "evaluation_metrics": ["<metric the paper itself uses>", ...],
   "risks_and_mitigations": [
     {{"risk": "<risk>", "mitigation": "<mitigation>"}}
   ],
-  "how_to_stand_out": ["<differentiating idea>", "<differentiating idea>", ...],
+  "how_to_stand_out": ["<differentiation idea that goes beyond what the README already ships>", ...],
   "paper_refs": [
-    {{"title": "<paper area or likely title>", "note": "<why relevant>"}}
+    {{"title": "<paper title from grounding>", "note": "<why relevant>"}}
   ],
   "repo_refs": [
-    {{"name": "<org/repo>", "note": "<why relevant>"}}
+    {{"name": "<owner/repo from grounding>", "note": "<why relevant>"}}
   ]
 }}"""
