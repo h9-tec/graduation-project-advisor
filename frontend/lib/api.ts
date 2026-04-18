@@ -108,3 +108,26 @@ export async function expandCard(
     {},
   );
 }
+
+export type RefineResponse = {
+  session_id: string;
+  cards: LeanCard[];
+  assistant_msg: string;
+  refinement_count: number;
+  history_depth: number;
+};
+
+export async function refineSession(
+  sessionId: string,
+  message: string,
+): Promise<RefineResponse> {
+  return postJSON(`/api/v1/sessions/${sessionId}/refine`, { message });
+}
+
+export async function undoRefinement(
+  sessionId: string,
+): Promise<RefineResponse> {
+  return postJSON(`/api/v1/sessions/${sessionId}/refine/undo`, {});
+}
+
+export const MAX_REFINEMENTS_PER_SESSION = 15;

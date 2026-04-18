@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { fetchCards, type LeanCard } from "@/lib/api";
+import { fetchCards, type LeanCard, type RefineResponse } from "@/lib/api";
 import { IdeaCard } from "@/components/idea-card";
+import { RefineBar } from "@/components/refine-bar";
 
 export function BoardView({
   locale,
@@ -17,6 +18,8 @@ export function BoardView({
   const t = useTranslations("board");
   const [cards, setCards] = useState<LeanCard[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [refinementCount, setRefinementCount] = useState(0);
+  const [historyDepth, setHistoryDepth] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +35,13 @@ export function BoardView({
     };
   }, [sessionId]);
 
+  function onRefined(r: RefineResponse) {
+    setCards(r.cards);
+    setRefinementCount(r.refinement_count);
+    setHistoryDepth(r.history_depth);
+    setErr(null);
+  }
+
   return (
     <section className="flex flex-col gap-10">
       <header className="flex flex-wrap items-end justify-between gap-6">
@@ -42,7 +52,10 @@ export function BoardView({
           >
             {t("eyebrow")}
           </p>
-          <h1 className="mt-3 text-4xl leading-tight md:text-6xl" style={{ fontWeight: 800 }}>
+          <h1
+            className="mt-3 text-4xl leading-tight md:text-6xl"
+            style={{ fontWeight: 800 }}
+          >
             {t("headline")}
           </h1>
           <p
@@ -93,7 +106,7 @@ export function BoardView({
         <div className="grid auto-rows-[minmax(0,1fr)] grid-cols-1 gap-5 md:grid-cols-3 md:gap-6">
           {cards.map((c, i) => (
             <IdeaCard
-              key={c.id}
+              key={`${c.id}-${refinementCount}`}
               locale={locale}
               sessionId={sessionId}
               card={c}
@@ -102,6 +115,15 @@ export function BoardView({
           ))}
         </div>
       )}
+
+      {cards !== null ? (
+        <RefineBar
+          sessionId={sessionId}
+          refinementCount={refinementCount}
+          historyDepth={historyDepth}
+          onRefined={onRefined}
+        />
+      ) : null}
     </section>
   );
 }

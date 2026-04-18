@@ -9,6 +9,7 @@ from loguru import logger
 from api.schemas.blueprint import Blueprint, BlueprintResponse
 from api.schemas.intent import IntentProfile
 from api.schemas.recommendation import LeanCard, RecommendationsResponse
+from api.schemas.refine import RefineRequest, RefineResponse
 from core.llm.gateway import chat_json
 from core.llm.prompts import (
     blueprint_system_prompt,
@@ -17,10 +18,18 @@ from core.llm.prompts import (
     rec_user_prompt,
 )
 from core.llm.prompts_rag import rerank_system_prompt, rerank_user_prompt
+from core.llm.prompts_refine import refine_system_prompt, refine_user_prompt
 from core.recommendation.retrieve import pre_score, retrieve
 from core.session_store import (
+    MAX_REFINEMENTS_PER_SESSION,
+    decr_refine_count,
+    get_refine_count,
+    incr_refine_count,
     load_cards,
     load_profile,
+    pop_profile_history,
+    profile_history_depth,
+    push_profile_history,
     save_blueprint,
     save_cards,
     save_profile,
@@ -37,12 +46,12 @@ def _slug(value: str) -> str:
     return slug[:64] or uuid.uuid4().hex[:8]
 
 
-@router.post("/recommendations", response_model=RecommendationsResponse)
-async def create_recommendations(profile: IntentProfile) -> RecommendationsResponse:
-    session_id = uuid.uuid4().hex
-    await save_profile(session_id, profile.model_dump())
+async def _build_cards_from_profile(profile: IntentProfile) -> list[LeanCard]:
+    """Core recommendation logic — used by /recommendations, /refine, /refine/undo.
 
-    # ---------- RAG path: retrieve → pre-score → LLM re-rank -----------
+    Returns a list of LeanCards (empty only if both RAG and the pure-LLM
+    fallback fail; callers should treat that as an error).
+    """
     hits = await retrieve(profile, top_k=50)
     logger.info(f"retrieve: {len(hits)} hits from Qdrant (floor={RETRIEVAL_FLOOR})")
 
@@ -118,9 +127,7 @@ async def create_recommendations(profile: IntentProfile) -> RecommendationsRespo
             )
 
         if cards:
-            await save_cards(session_id, [c.model_dump() for c in cards])
-            logger.info(f"rag: returned {len(cards)} cards (session {session_id})")
-            return RecommendationsResponse(session_id=session_id, cards=cards)
+            return cards
 
         logger.warning("rag: all re-rank ids were invalid, falling back to pure-LLM")
 
@@ -143,7 +150,7 @@ async def create_recommendations(profile: IntentProfile) -> RecommendationsRespo
     if not ranked:
         raise HTTPException(status_code=502, detail="LLM returned no ranked items")
 
-    cards: list[LeanCard] = []
+    fallback_cards: list[LeanCard] = []
     seen_ids: set[str] = set()
     for i, item in enumerate(ranked[:5], start=1):
         raw_id = str(item.get("id") or item.get("title") or f"card-{i}")
@@ -152,7 +159,7 @@ async def create_recommendations(profile: IntentProfile) -> RecommendationsRespo
             card_id = f"{card_id}-{i}"
         seen_ids.add(card_id)
 
-        cards.append(
+        fallback_cards.append(
             LeanCard(
                 id=card_id,
                 rank=int(item.get("rank", i)),
@@ -160,14 +167,28 @@ async def create_recommendations(profile: IntentProfile) -> RecommendationsRespo
                 domains=list(item.get("domains", [])),
                 why_fit=str(item.get("why_fit", "")),
                 est_weeks=int(item.get("est_weeks", profile.months_available * 4)),
-                difficulty_verdict=str(item.get("difficulty_verdict", profile.skill_level)),
+                difficulty_verdict=str(
+                    item.get("difficulty_verdict", profile.skill_level)
+                ),
                 research_hook=str(item.get("research_hook", "")),
                 stack_hook=str(item.get("stack_hook", "")),
                 stars_estimate=int(item.get("stars_estimate", 1000)),
             )
         )
+    return fallback_cards
+
+
+@router.post("/recommendations", response_model=RecommendationsResponse)
+async def create_recommendations(profile: IntentProfile) -> RecommendationsResponse:
+    session_id = uuid.uuid4().hex
+    await save_profile(session_id, profile.model_dump())
+
+    cards = await _build_cards_from_profile(profile)
+    if not cards:
+        raise HTTPException(status_code=502, detail="No cards produced")
 
     await save_cards(session_id, [c.model_dump() for c in cards])
+    logger.info(f"create_recommendations: {len(cards)} cards (session {session_id})")
     return RecommendationsResponse(session_id=session_id, cards=cards)
 
 
@@ -211,10 +232,11 @@ async def expand_card(session_id: str, card_id: str) -> BlueprintResponse:
     try:
         bp = Blueprint.model_validate(raw)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM returned malformed blueprint: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"LLM returned malformed blueprint: {exc}"
+        ) from exc
 
     # Inject the card's real paper/repo URLs as top references — RAG-path only.
-    # (Falls through harmlessly when the card came from the pure-LLM path.)
     from api.schemas.blueprint import Ref
 
     real_paper_url = card.get("arxiv_url")
@@ -236,3 +258,134 @@ async def expand_card(session_id: str, card_id: str) -> BlueprintResponse:
 
     await save_blueprint(session_id, card_id, bp.model_dump())
     return BlueprintResponse(card_id=card_id, blueprint=bp)
+
+
+@router.post(
+    "/sessions/{session_id}/refine",
+    response_model=RefineResponse,
+)
+async def refine_session(
+    session_id: str, body: RefineRequest
+) -> RefineResponse:
+    """Apply a free-text refinement to the session's profile + re-run RAG.
+
+    Flow:
+      1. Load current profile + last cards.
+      2. Check rate limit (MAX_REFINEMENTS_PER_SESSION).
+      3. Ask LLM for a profile diff + a human-readable note about what changed.
+      4. Validate the updated profile against IntentProfile.
+      5. Push the OLD profile onto the undo stack.
+      6. Save the new profile; re-run RAG; save new cards.
+    """
+    current = await load_profile(session_id)
+    prev_cards = await load_cards(session_id)
+    if current is None or prev_cards is None:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+
+    count = await get_refine_count(session_id)
+    if count >= MAX_REFINEMENTS_PER_SESSION:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Refinement limit reached ({MAX_REFINEMENTS_PER_SESSION}/session)",
+        )
+
+    language = current.get("language", "en")
+    system = refine_system_prompt(language)
+    user = refine_user_prompt(
+        current, [c.get("title", "") for c in prev_cards][:5], body.message
+    )
+
+    try:
+        raw = await chat_json(
+            tier="fast",
+            system=system,
+            user=user,
+            max_tokens=800,
+            temperature=0.3,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"LLM refine call failed: {exc}"
+        ) from exc
+
+    updated_raw = raw.get("updated_profile") or {}
+    notes = str(raw.get("refinement_notes") or "").strip()
+
+    # The LLM sometimes omits required fields; fill holes from the current profile.
+    merged = {**current, **updated_raw}
+    try:
+        new_profile = IntentProfile.model_validate(merged)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"LLM returned malformed profile: {exc}"
+        ) from exc
+
+    # Push OLD profile onto the undo stack BEFORE saving the new one.
+    await push_profile_history(session_id, current)
+    await save_profile(session_id, new_profile.model_dump())
+    new_count = await incr_refine_count(session_id)
+
+    cards = await _build_cards_from_profile(new_profile)
+    if not cards:
+        # Roll back: pop the saved history and restore old profile.
+        await pop_profile_history(session_id)
+        await save_profile(session_id, current)
+        await decr_refine_count(session_id)
+        raise HTTPException(status_code=502, detail="Refinement produced no cards")
+    await save_cards(session_id, [c.model_dump() for c in cards])
+    depth = await profile_history_depth(session_id)
+
+    return RefineResponse(
+        session_id=session_id,
+        cards=cards,
+        assistant_msg=notes or ("Done." if language == "en" else "تم."),
+        refinement_count=new_count,
+        history_depth=depth,
+    )
+
+
+@router.post(
+    "/sessions/{session_id}/refine/undo",
+    response_model=RefineResponse,
+)
+async def undo_refinement(session_id: str) -> RefineResponse:
+    """Pop the most recent previous profile, restore it, re-run RAG."""
+    current = await load_profile(session_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+
+    previous = await pop_profile_history(session_id)
+    if previous is None:
+        raise HTTPException(status_code=400, detail="Nothing to undo")
+
+    try:
+        restored = IntentProfile.model_validate(previous)
+    except Exception:
+        # If the stored profile fails validation (shouldn't happen, schema
+        # is stable), push it back and error so state isn't lost.
+        await push_profile_history(session_id, previous)
+        raise HTTPException(
+            status_code=500, detail="Stored profile no longer validates"
+        )
+
+    await save_profile(session_id, restored.model_dump())
+    new_count = await decr_refine_count(session_id)
+    cards = await _build_cards_from_profile(restored)
+    if not cards:
+        raise HTTPException(status_code=502, detail="Undo produced no cards")
+    await save_cards(session_id, [c.model_dump() for c in cards])
+    depth = await profile_history_depth(session_id)
+
+    assistant_msg = (
+        "Reverted to your previous set."
+        if restored.language == "en"
+        else "تم التراجع للحالة السابقة."
+    )
+
+    return RefineResponse(
+        session_id=session_id,
+        cards=cards,
+        assistant_msg=assistant_msg,
+        refinement_count=new_count,
+        history_depth=depth,
+    )

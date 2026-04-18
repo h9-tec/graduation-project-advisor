@@ -79,6 +79,16 @@
     "tryAgain": "Try again",
     "back": "Back"
   },
+  "refine": {
+    "heading": "Refine",
+    "placeholder": "e.g. more RL, less infra — or finish in 3 months",
+    "submit": "Refine",
+    "busy": "Thinking…",
+    "undo": "Undo",
+    "error": "Refinement failed",
+    "counter": "{count}/{max} refinements",
+    "limitReached": "Refinement limit reached. Start a new session to keep tweaking."
+  },
   "domains": {
     "nlp": "NLP",
     "cv": "Computer Vision",
