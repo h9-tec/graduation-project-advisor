@@ -1,35 +1,40 @@
+<div align="center">
+
 # Graduation Project Advisor
 
-**Helps Egyptian CS / AI / SWE undergraduates pick a production-grade graduation project — grounded in real research papers and real GitHub repos, delivered as ranked idea cards that expand into supervisor-ready blueprints.**
+### Find the graduation project that's yours — grounded in real research, real code, and a plan your supervisor will actually read.
 
-Bilingual from day one. Arabic-first UX, English-parity toggle, full RTL. Locally-typed, locally-served; no tracking, no accounts, no PII.
+An Arabic-first, bilingual AI advisor for Egyptian CS / AI / SWE undergraduates. One form, five grounded ideas, and a one-click expansion into a supervisor-ready blueprint anchored in the paper's real abstract and the repo's real README.
 
-<p align="center">
-  <img src="docs/assets/landing-ar-dark.png" alt="Arabic landing page, dark manuscript theme" width="820" />
-</p>
+<img src="docs/assets/landing-ar-dark.png" alt="Arabic landing page, dark manuscript theme" width="860" />
 
-> **Status:** Scaffold and functional LLM-backed UI shipped · **ingestion pipeline shipped** — 997 records in Qdrant across 3 sources, retrieval-first RAG recommender, blueprint output grounded to the real retrieved paper and repo.
+</div>
 
 ---
 
-## The problem
+## Why this exists
 
-Every senior-year CS student in Egypt hits the same wall: *what should my graduation project be?* The usual answers are shallow ("build a todo app with auth"), disconnected from research (no paper grounding), or overwhelming (raw arXiv feeds, endless GitHub trending). Supervisors don't have the hours to hand-tailor ideas to every student's background, timeline, and interests.
+Every senior-year CS student in Egypt hits the same wall: *what should my graduation project be?* The usual answers are:
 
-## The solution
+- **Shallow** — "build a todo app with auth."
+- **Disconnected from research** — no paper grounding, no clear novelty angle.
+- **Overwhelming** — raw arXiv feeds, endless GitHub trending, contradictory advice.
 
-One form. Five minutes. Five grounded project ideas, each with a research hook and a stack hook, ranked for your skill level and time budget. Any card expands — with one click — into a full production-grade blueprint: problem statement, scope boundaries, suggested architecture, milestones by week, datasets, evaluation metrics, risks, and how to stand out. Bilingual reasoning (technical terms stay English, the "why this fits you" is in the student's language).
+Supervisors don't have the hours to hand-tailor ideas to every student's background, timeline, and interests. This tool fills that gap: a retrieval-grounded advisor that speaks the student's language, cites real papers and real repos, and produces an artifact the supervisor can sign off on.
 
-Under the hood it's an **indexed-RAG pipeline** over a live corpus:
+---
 
-- **997 real papers + repos** in Qdrant (695 HF Daily Papers · 290 arXiv · 12 GitHub Trending)
-- **multilingual embeddings** (`paraphrase-multilingual-MiniLM-L12-v2`, 384-d) so an Arabic query retrieves English papers natively
-- **deterministic pre-score** before any LLM sees the candidates (0.5 · cosine + 0.2 · quality + 0.1 · recency + 0.1 · has-code + 0.1 · difficulty-match)
-- **LLM re-rank with anti-hallucination ids** — the re-ranker is constrained to pick from the retrieved set; any fabricated id is dropped
-- **blueprint URL injection** — the expand endpoint prepends the retrieved paper's real arxiv/github URL to the blueprint's reference list, so every supervisor-ready artifact cites something that genuinely exists
+## What it does
 
-Wrapped in a clean-theme editorial UI that deliberately doesn't look like another ChatGPT clone.
+- **Five grounded ideas per session.** A short form captures the student's domains, skill level, timeline, team size, and interests. The recommender retrieves from a live corpus of papers + repos, scores candidates deterministically, lets a language model re-rank the top 20, and returns 5 cards — **every card cites a real paper or repo**. The re-ranker is constrained to pick only from the retrieved set; fabricated ids are dropped.
 
+- **Plans grounded in actual content.** Clicking *Expand blueprint* on a card fetches the real abstract from the database and the real README from GitHub, feeds both into the prompt, and asks for a blueprint anchored in that material. Where the source is silent, the plan explicitly says *"details to refine with your supervisor"* instead of inventing.
+
+- **Refine in place.** A sticky chat bar at the bottom of the board lets the student say "more RL, less infra, cut timeline to 3 months." The current intent profile is diffed, the board re-retrieves, and up to fifteen refinements per session are stackable with a one-click Undo.
+
+- **Triage and compare.** Thumbs up / down per card (persisted for the offline eval set), a save button, a dedicated saved page, and a three-way side-by-side compare panel.
+
+- **Fully bilingual, RTL-correct.** Every view works in Arabic and English. Technical terms stay in English (RAG, transformer, embedding, PyTorch) while the "why this fits you" reasoning is rendered in the student's language. The manuscript typography pairs Fraunces / DM Sans (Latin) with Lemonada (Arabic) and keeps Arabic line-height at 1.9 so the script has room to breathe.
 
 ---
 
@@ -37,84 +42,88 @@ Wrapped in a clean-theme editorial UI that deliberately doesn't look like anothe
 
 ### Onboarding — the only form in the app
 
-Domain chips, skill level, months available, team size, preferred stack, interests free-text, topics to avoid. Estimated completion: **under a minute**. No tracking, no login, no account. The profile lives in the server session (Redis, 6-hour TTL) and is discarded when you close the tab.
+Domain chips, skill level, months available, team size, preferred stack, interests free-text, and topics to avoid. No tracking, no login, no account. The profile lives in the server session (Redis, 6-hour TTL) and is discarded when the tab closes.
 
-<p align="center">
-  <img src="docs/assets/onboard-ar-dark.png" alt="Arabic onboarding form, dark theme" width="820" />
-</p>
+<div align="center">
+  <img src="docs/assets/onboard-ar-dark.png" alt="Arabic onboarding form, dark theme" width="860" />
+</div>
 
 ### The board — ranked cards, not a chat transcript
 
-Five cards, asymmetric layout, every card grounds itself on a named research area and a named stack. Click any card to expand into a full blueprint. Intentionally *not* a chat UI — students don't need to "prompt engineer" their own grad project.
+Five cards, asymmetric layout, each grounded in a named research area and a named stack. Intentionally *not* a chat UI — students shouldn't have to prompt-engineer their own graduation project. The sticky refine bar at the bottom handles conversational follow-ups without taking over the screen.
 
-<p align="center">
-  <img src="docs/assets/board-ar-light.png" alt="Arabic board of 5 ideas, light theme" width="820" />
-</p>
+<div align="center">
+  <img src="docs/assets/board-ar-light.png" alt="Arabic board of 5 ideas, light theme" width="860" />
+</div>
 
 ### Blueprint — supervisor-ready
 
-Every blueprint has: problem statement, why it matters, in-scope / out-of-scope, suggested architecture, tech stack, milestones by week (typically 6–7 phases across 10–16 weeks), datasets with URLs, evaluation metrics, risks & mitigations, "how to stand out" (3+ differentiation ideas), and real paper / repo references.
+Every blueprint carries thirteen sections: problem statement, why it matters, in-scope / out-of-scope, suggested architecture, tech stack, milestones by week (typically six to seven phases across 10 – 16 weeks), datasets with URLs, evaluation metrics, risks & mitigations, differentiation ideas, plus real paper and repo references — with the authoritative arXiv and GitHub URLs injected at the top of each reference list post-generation so they can never be hallucinated.
 
-<p align="center">
-  <img src="docs/assets/blueprint-ar-dark.png" alt="Arabic blueprint page, dark theme — problem, scope, architecture, stack, milestones" width="820" />
-</p>
+<div align="center">
+  <img src="docs/assets/blueprint-ar-dark.png" alt="Arabic blueprint page, dark theme" width="860" />
+</div>
 
-The Arabic blueprint above was generated for an "Arabic RAG for augmenting texts with LLMs + embeddings" intent. Section headings (المشكلة, ليه مهمة, داخل النطاق, التقنيات, المراحل الزمنية) stay in Arabic; technical tokens (`embedding`, `FastAPI`, `python`, `transformer`, `LLM`) stay in English — this is the bilingual contract every downstream generation honors.
+The Arabic section headings (المشكلة, ليه مهمة, داخل النطاق, التقنيات, المراحل الزمنية) stay in Arabic; technical tokens (`embedding`, `FastAPI`, `python`, `transformer`, `LLM`) stay in English. This is the bilingual contract every downstream generation honors.
 
 ---
 
-## Architecture
+## How it works
 
 ```
- ┌──────────────────────────── request path ────────────────────────────┐
+┌──────────────────────────── request path ────────────────────────────┐
 
- ┌────────────────────┐   REST     ┌──────────────────────┐   ANN +     ┌──────────┐
- │  Next.js 15 web    │◄─────────► │   FastAPI recommender│◄─────────── │  Qdrant  │
- │  ar / en + RTL     │   JSON     │   stateless          │  top-50     │  997 pts │
- └────────────────────┘            └───────┬──────────────┘  filter     └──────────┘
-         ▲                                 │
-         │                                 ▼
-         │                       ┌──────────────────┐
-         │                       │  pre-score →     │
-         │                       │  top 20 → LLM    │
-         │                       │  re-rank (guard: │
-         │                       │  ids ∈ retrieved)│
-         │                       └───────┬──────────┘
-         │                               ▼
-         │                     ┌──────────────────┐
-         │                     │  LeanCard[5]     │
-         │                     │  with arxiv_url  │
-         │                     │  + github_url    │
-         │                     └──────────────────┘
+┌────────────────────┐   REST     ┌──────────────────────┐   ANN +     ┌──────────┐
+│  Next.js 15 web    │◄─────────► │  FastAPI recommender │◄─────────── │  Qdrant  │
+│  ar / en + RTL     │   JSON     │  stateless           │  filter     │          │
+└────────────────────┘            └───────┬──────────────┘  top-50     └──────────┘
+                                          │
+                                          ▼
+                               ┌──────────────────────┐
+                               │  deterministic       │
+                               │  pre-score → top 20  │
+                               │                      │
+                               │  LLM re-rank         │
+                               │  (ids validated)     │
+                               │                      │
+                               │  LeanCard[5] with    │
+                               │  real arxiv_url +    │
+                               │  real github_url     │
+                               └──────────────────────┘
 
- ┌───────────────────────── ingestion path ─────────────────────────────┐
+┌────────────────────── ingestion path ────────────────────────────────┐
 
-  HF Daily Papers API ───────┐
-  arXiv REST (feedparser)    ├──► normalize (dedup by arxiv_id / gh_url)
-  GitHub Trending (Crawl4AI) ─┘     │
-                                    ▼
-                          ┌─ multilingual MiniLM embedder ─┐
-                          │    (local CPU, 384-dim)        │
-                          └───────────┬────────────────────┘
-                                      ▼
-                     ┌─ Postgres (ProjectCandidate rows)   ─┐
-                     │  + Qdrant payload-indexed points    │
-                     └──────────────────────────────────────┘
+ HF Daily Papers API ──┐
+ arXiv REST            ├─►  normalize + dedup  ─►  multilingual encoder
+ GitHub Trending       ─┘   (arxiv_id / github)    (MiniLM, 384-d, CPU)
+  via Crawl4AI                      │                      │
+                                    ▼                      ▼
+                         ┌─────────────────────────────────────┐
+                         │  Postgres (ProjectCandidate)        │
+                         │  +                                  │
+                         │  Qdrant (payload-indexed points)    │
+                         └─────────────────────────────────────┘
 
- ┌────────────────────── session + infra plane ─────────────────────────┐
+ Celery beat: HF daily every 6h · arXiv nightly · GitHub weekly
+ Dead-letter table for failed items · per-run IngestionRun stats
+ Observability: GET /api/v1/ingest/status
 
-                      ┌──────────┐   ┌────────────┐   ┌─────────────────┐
-                      │ Postgres │   │   Redis    │   │  LLM gateway    │
-                      │ candidates│  │ sessions + │   │                 │
-                      │ + users  │   │ card cache │   │  azure  │ ollama│
-                      └──────────┘   └────────────┘   └─────────────────┘
+┌────────────── session + infrastructure ──────────────────────────────┐
+
+           ┌──────────┐   ┌────────────┐   ┌─────────────────┐
+           │ Postgres │   │   Redis    │   │  LLM gateway    │
+           │ feedback │   │ sessions + │   │                 │
+           │ + runs   │   │ card cache │   │  azure  │ ollama│
+           └──────────┘   └────────────┘   └─────────────────┘
 ```
 
 Three clean subsystems with narrow interfaces:
 
-1. **Ingestion** — three pipelines land normalized `ProjectCandidate` records into Postgres + Qdrant with multilingual embeddings. HF Daily Papers carries pre-generated `ai_summary` and `ai_keywords` so we skip an LLM enrichment call entirely for those records. arXiv fills the long tail. Crawl4AI scrapes the weekly Python trending page (GitHub has no trending API).
-2. **Recommender** *(FastAPI, stateless)* — form → Qdrant filter+ANN → deterministic pre-score → LLM re-rank with id-validation → lean cards. One-click blueprint expansion injects the retrieved paper's real arxiv/github URL into the output. Redis-backed session cache.
-3. **Web app** *(Next.js 15 App Router)* — landing + onboarding + board + blueprint. Bilingual / RTL. Light, dark, and system themes with FOUC-safe boot.
+1. **Ingestion.** Three pipelines land normalized `ProjectCandidate` records into Postgres and Qdrant with multilingual embeddings. HF Daily Papers carries pre-generated `ai_summary` and `ai_keywords`, so an enrichment LLM call is skipped for most records. arXiv covers the long tail via a rate-limited REST loop. A Crawl4AI scraping agent pulls GitHub's weekly Python trending page (no API exists). Celery beat schedules the three jobs at 6-hour / nightly / weekly cadences with autoretry, dead-letter capture, and per-run statistics exposed at `/api/v1/ingest/status`.
+
+2. **Recommender.** Stateless FastAPI that converts an `IntentProfile` into a query embedding, runs an ANN + payload-filter query against Qdrant, applies a deterministic pre-score (a weighted blend of cosine similarity, quality, recency, code availability, and difficulty match), takes the top 20, and asks a small language model to re-rank them with strict id validation. The expansion endpoint pulls the real paper abstract and the real repo README before prompting the stronger model, so every blueprint is anchored in actual source material.
+
+3. **Web.** Next.js 15 App Router, bilingual with RTL, FOUC-safe dark / light / system themes, self-hosted fonts. Server components handle the page shell; client components cover the interactive bits (form, refine bar, card actions). No client state outside what each component owns; session state lives on the server.
 
 ---
 
@@ -122,33 +131,38 @@ Three clean subsystems with narrow interfaces:
 
 | Layer | Tech |
 |---|---|
-| **Backend** | Python 3.12 · FastAPI · SQLAlchemy 2 (async) · Alembic · Pydantic v2 · Loguru |
-| **Workers** | Celery 5 · Celery beat (nightly ingestion jobs, Phase 1+) |
-| **Data** | PostgreSQL 16 · Qdrant 1.16 · Redis 7 |
-| **LLM — cloud** | Azure OpenAI `gpt-4o-mini` (fast tier) · `gpt-4o` (smart tier) |
-| **LLM — local** | Ollama via OpenAI-compat: `llama3.2:3b` (fast) · `aya:8b` (multilingual smart) |
-| **Embeddings** | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (local CPU, 384-d) |
-| **Frontend** | Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind v4 · next-intl · Biome |
-| **Type system** | Server-side Pydantic, frontend `lib/api.ts` mirrors the schemas |
-| **Container runtime** | Docker + Docker Compose |
-| **CI** | GitHub Actions: `backend-ci.yml` and `frontend-ci.yml` (lint · typecheck · test) |
+| **Backend** | Python 3.12 · FastAPI · SQLAlchemy 2 async · Alembic · Pydantic v2 · Loguru |
+| **Workers** | Celery 5 · Celery beat · autoretry with exponential backoff |
+| **Data plane** | PostgreSQL 16 · Qdrant 1.16 · Redis 7 |
+| **Embeddings** | `paraphrase-multilingual-MiniLM-L12-v2` — 384-dim, local CPU, cross-lingual Arabic ↔ English |
+| **LLM (cloud)** | Azure OpenAI `gpt-4o-mini` (fast tier) · `gpt-4o` (smart tier) |
+| **LLM (local)** | Ollama via OpenAI-compat, `llama3.2:3b` + `aya:8b` (strong Arabic) |
+| **Scraping** | Crawl4AI — Apache 2.0, Playwright under the hood, Ollama-friendly |
+| **Frontend** | Next.js 15 App Router · React 19 · TypeScript strict · Tailwind v4 · next-intl · Biome |
+| **Type system** | Pydantic on the wire, TypeScript mirror in `lib/api.ts` |
+| **Runtime** | Docker + Docker Compose |
+| **CI** | GitHub Actions — backend lint / typecheck / test, frontend lint / typecheck / build / test |
 
 ---
 
 ## Quick start
 
-Requirements: Docker 27+, Docker Compose v2. Optional: Python 3.12 and Node 22+ for running backend/frontend outside containers.
+Requirements: **Docker 27+**, **Docker Compose v2**. Optional: **Python 3.12** and **Node 22+** for running backend or frontend directly on the host.
 
 ```bash
 git clone https://github.com/h9-tec/graduation-project-advisor.git graduation_project
-# or over SSH:  git clone git@github.com:h9-tec/graduation-project-advisor.git graduation_project
+# or over SSH:
+# git clone git@github.com:h9-tec/graduation-project-advisor.git graduation_project
+
 cd graduation_project
 cp .env.example .env
-# Edit .env and paste your Azure OpenAI endpoint + key (or flip LLM_PROVIDER=ollama)
+# Open .env and paste your Azure OpenAI endpoint + key,
+# or flip LLM_PROVIDER=ollama for a fully local stack.
+
 docker compose up -d --build
 ```
 
-Wait ~30 seconds for healthchecks, then:
+Wait ~30 seconds for health checks, then:
 
 | URL | What |
 |---|---|
@@ -157,32 +171,31 @@ Wait ~30 seconds for healthchecks, then:
 | <http://localhost:8010/healthz> | Backend liveness |
 | <http://localhost:8010/metrics> | Prometheus metrics |
 | <http://localhost:8010/docs> | FastAPI Swagger UI |
+| <http://localhost:8010/api/v1/ingest/status> | Per-source ingestion stats |
 | <http://localhost:6333/dashboard> | Qdrant dashboard |
 
----
+### Host port cheat sheet
 
-## Host port cheat sheet
+Compose deliberately remaps host ports so the stack does not clash with local Postgres / Redis instances developers already run:
 
-Compose deliberately remaps host ports off the usual defaults to avoid clashing with a dev's existing local Postgres / Redis:
+| Service | Host port | Container port |
+|---|---|---|
+| Postgres | `5433` | 5432 |
+| Redis | `6380` | 6379 |
+| Backend (FastAPI) | `8010` | 8000 |
+| Qdrant HTTP | `6333` | 6333 |
+| Qdrant gRPC | `6334` | 6334 |
+| Frontend (Next.js) | `3000` | 3000 |
 
-| Service | Host port | Container port | Why remapped |
-|---|---|---|---|
-| Postgres | `5433` | 5432 | Dev likely has a 5432 already |
-| Redis | `6380` | 6379 | Dev likely has a 6379 already |
-| Backend (FastAPI) | `8010` | 8000 | 8000/8001 were bound on the test machine |
-| Qdrant HTTP | `6333` | 6333 | — |
-| Qdrant gRPC | `6334` | 6334 | — |
-| Frontend (Next.js) | `3000` | 3000 | — |
-
-**Inter-service calls inside the compose network always use the container ports** (e.g. `postgres:5432`, `redis:6379`, `qdrant:6333`).
+Inside the compose network, services speak on their container ports (e.g. `postgres:5432`, `redis:6379`, `qdrant:6333`).
 
 ---
 
 ## LLM providers
 
-The gateway abstracts which model you're talking to. Flip `LLM_PROVIDER` in `.env`.
+A provider-neutral gateway routes fast-tier and smart-tier calls by the `LLM_PROVIDER` env var. Switching is one setting.
 
-### Azure OpenAI *(default, recommended for production)*
+### Azure OpenAI (default)
 
 ```env
 LLM_PROVIDER=azure
@@ -193,14 +206,14 @@ AZURE_OPENAI_DEPLOYMENT_FAST=gpt-4o-mini
 AZURE_OPENAI_DEPLOYMENT_SMART=gpt-4o
 ```
 
-Measured latencies against a real Egyptian-CS-student profile:
+Measured latencies against a real student profile:
 
-| Call | Model | Time | Output |
-|---|---|---|---|
-| `/recommendations` (5 cards) | `gpt-4o-mini` | ~3 s | ~1.5 KB JSON |
-| `/sessions/{sid}/cards/{id}/expand` | `gpt-4o` | ~6 s | ~3–5 KB JSON |
+| Call | Tier | Latency |
+|---|---|---|
+| `POST /recommendations` | fast | ~ 3 s (5 cards) |
+| `POST /sessions/{sid}/cards/{id}/expand` | smart | ~ 6 s (full blueprint) |
 
-### Ollama *(local, no Azure spend, no rate limits)*
+### Ollama (local)
 
 ```env
 LLM_PROVIDER=ollama
@@ -209,28 +222,25 @@ OLLAMA_MODEL_FAST=llama3.2:3b
 OLLAMA_MODEL_SMART=aya:8b
 ```
 
-`aya:8b` is Cohere's multilingual model and produces strong Arabic output alongside English. Measured on an RTX 5060 Laptop (8 GB VRAM):
+Measured on an RTX 5060 Laptop (8 GB VRAM):
 
-| Call | Model | Time |
+| Call | Model | Latency |
 |---|---|---|
-| `/recommendations` (5 cards) | `llama3.2:3b` | ~13 s |
-| `/expand` (full blueprint) | `aya:8b` | ~50 s |
+| `POST /recommendations` | `llama3.2:3b` | ~ 13 s |
+| `POST /expand` | `aya:8b` | ~ 50 s |
 
-**Running with Ollama — recommended path**
+`aya:8b` is chosen for the smart tier because it produces strong Arabic output alongside English.
+
+**Running with Ollama** (tested path on Linux hosts where iptables blocks docker → host traffic):
 
 ```bash
-# 1. Keep compose infra running (postgres, redis, qdrant, frontend)
+# Keep compose infra running; start Ollama on the host.
 docker compose up -d postgres redis qdrant frontend
-
-# 2. Start Ollama on the host
 OLLAMA_HOST=127.0.0.1:11434 ollama serve &
 
-# 3. Stop the dockerized backend; run uvicorn on the host so it can
-#    reach Ollama (docker→host traffic needs an iptables allow-rule
-#    on this machine, so the host-run path is the tested one).
+# Stop the dockerized backend, run uvicorn directly so it can reach Ollama.
 docker compose stop backend
 cd backend && source ../.venv/bin/activate
-
 DATABASE_URL="postgresql+asyncpg://grad:grad@localhost:5433/grad" \
 REDIS_URL="redis://localhost:6380/0" \
 QDRANT_URL="http://localhost:6333" \
@@ -240,32 +250,51 @@ FRONTEND_ORIGIN="http://localhost:3000" \
 uvicorn api.main:app --port 8010 --reload
 ```
 
-> **Heads-up on docker→host networking:** if you run the backend inside compose with `LLM_PROVIDER=ollama`, the container needs to reach the host's Ollama. On Docker Desktop this works out of the box via `host.docker.internal`. On bare Ubuntu with default firewall rules, docker→host traffic is silently dropped — run the backend on the host (as above) or add the iptables allow-rule for your bridge network.
+---
+
+## API reference
+
+All routes are under `/api/v1`. All request and response bodies are JSON. Pydantic validates on entry; the frontend mirrors the shape in `lib/api.ts`.
+
+| Route | Verb | Purpose |
+|---|---|---|
+| `/recommendations` | POST | Submit an `IntentProfile`, receive 5 lean cards + a session id |
+| `/sessions/{sid}` | GET | Full session state — cards + refinement count + undo stack depth |
+| `/sessions/{sid}/cards` | GET | Current cards only |
+| `/sessions/{sid}/cards/{card_id}/expand` | POST | Expand a card into a full blueprint (grounded in the real paper + README) |
+| `/sessions/{sid}/refine` | POST | Apply a free-text refinement; returns updated cards + an assistant note |
+| `/sessions/{sid}/refine/undo` | POST | Pop the most recent refinement; 400 when the stack is empty |
+| `/feedback` | POST | Persist a thumbs up / down against a card (append-only, snapshot-bearing) |
+| `/sessions/{sid}/saved` | GET / POST | List or add to the saved-cards shortlist |
+| `/sessions/{sid}/saved/{card_id}` | DELETE | Remove a saved card |
+| `/eval/dataset` | GET | Flatten recent feedback rows for the offline evaluation harness |
+| `/ingest/status` | GET | Per-source last-run stats + unresolved dead-letter counts |
 
 ---
 
 ## Design philosophy
 
-The design direction has a name: **Manuscript meets Production**. Three ideas collide on purpose.
+The aesthetic has a name: **Manuscript meets Production**.
 
-- **Papers** — editorial, rational typography. Fraunces (Latin) + Lemonada (Arabic). Size jumps are 3×, not 1.5×.
-- **Code** — terminal minimalism. JetBrains Mono for domain chips, arXiv IDs, stars, milestone weeks. No filler chrome.
-- **Arabic-first** — dominant warm ink on cream (light) or warm ink on near-black (dark). A single sharp accent — manuscript gold `#c48a1e`. Direction-aware icons, logical CSS properties throughout. Arabic line-height 1.9 vs Latin 1.55 because Arabic needs the room.
+- **Scholarly editorial feel.** Fraunces display + DM Sans body in Latin; Lemonada display + Lemonada body in Arabic. Size jumps are three-to-one, not one-and-a-half — a 64 px headline next to a 14 px label has more authority than two shades of middle weight.
+- **Terminal minimalism.** JetBrains Mono for domain chips, arXiv ids, star counts, milestone week ranges. No filler chrome.
+- **Warm ink on cream.** A dominant warm ink color (`#1a1612` light, `#f0e6d0` dark) against an aged-paper or near-black canvas. A single sharp accent — manuscript gold `#c48a1e` — never a gradient.
+- **Not a chat clone.** The recommendation screen is an asymmetric board of idea cards, not a transcript. The refine bar sits quietly at the bottom. Students shouldn't have to prompt-engineer their own graduation project.
+- **Direction-aware throughout.** CSS logical properties, `dir="rtl"` on the Arabic locale root, directional icons auto-flip, logos never flip. Arabic line-height is 1.9 vs 1.55 for Latin — Arabic needs the extra vertical room.
 
-It's deliberately *not* a ChatGPT clone. The recommendation screen is a **board of idea cards**, not a chat transcript. Chat refinement sits quietly in a dismissable bottom rail (Phase 3). The blueprint expands into its own full-page artifact — the kind of document a student can hand to their supervisor.
-
-Every color is a CSS custom property with a semantic name (`--color-canvas`, `--color-accent`, `--color-signal-code`, `--color-signal-paper`). Dark and light themes share the same semantic map; swapping is a `data-theme` attribute on `<html>` and a FOUC-safe boot script.
+Every color is a semantically-named CSS custom property (`--color-canvas`, `--color-accent`, `--color-signal-code`, `--color-signal-paper`). Light and dark share the same semantic map; switching is a `data-theme` attribute on `<html>` plus a FOUC-safe inline boot script.
 
 ---
 
 ## Dev workflow
 
-### Backend (outside Docker)
+### Backend (on the host)
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e 'backend/[dev]'
+
 cd backend
 DATABASE_URL="sqlite+aiosqlite:///./grad.db" alembic upgrade head
 uvicorn api.main:app --reload
@@ -275,33 +304,41 @@ Tests, lint, typecheck:
 
 ```bash
 cd backend
-pytest tests/unit -v                          # 8 tests, async-aware
+pytest tests/unit -v
 ruff check . && ruff format --check .
-mypy api core ingestion                       # strict mode
+mypy api core ingestion
 ```
 
-### Frontend (outside Docker)
+### Frontend (on the host)
 
 ```bash
 cd frontend
-corepack pnpm install              # corepack ships with Node 16+; no global pnpm needed
-corepack pnpm dev                  # Next.js dev server on :3000
-corepack pnpm test                 # Vitest — 3 tests, jsdom
-corepack pnpm lint                 # Biome
-corepack pnpm typecheck            # tsc --noEmit, strict
-corepack pnpm build                # production Next.js build
+corepack pnpm install
+corepack pnpm dev
 ```
 
-### End-to-end (the real flow)
+Tests, lint, typecheck, production build:
 
-The app has been manually validated end-to-end with Playwright in both locales. The golden path is:
+```bash
+cd frontend
+corepack pnpm test
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm build
+```
 
-1. `GET /{locale}` — landing
-2. Click CTA → `GET /{locale}/onboard`
-3. Fill form, click submit → `POST /api/v1/recommendations` (~3 s with Azure, ~13 s with Ollama)
-4. Redirect to `/{locale}/board/{sid}` — render 5 cards
-5. Click "Expand blueprint" on a card → `POST /api/v1/sessions/{sid}/cards/{id}/expand` (~6 s / ~50 s)
-6. Render full blueprint with 13 sections
+### One-shot ingestion
+
+The three pipelines have a CLI entry point for manual runs:
+
+```bash
+cd backend && source ../.venv/bin/activate
+python -m ingestion.run --source hf_daily_papers --days 30
+python -m ingestion.run --source arxiv --days 3 --max-records 300
+python -m ingestion.run --source github_trending --count 25
+```
+
+These are the same runners Celery beat schedules.
 
 ---
 
@@ -312,112 +349,86 @@ graduation_project/
 ├── backend/
 │   ├── api/
 │   │   ├── main.py                        FastAPI factory + lifespan + CORS
-│   │   ├── routes/recommendations.py      POST /recommendations, GET cards, POST expand
-│   │   └── schemas/                       IntentProfile · LeanCard · Blueprint (pydantic)
+│   │   ├── routes/
+│   │   │   ├── recommendations.py         POST /recommendations, /expand, /refine, /refine/undo, GET /sessions/{sid}
+│   │   │   ├── feedback.py                POST /feedback, GET/POST/DELETE /saved, GET /eval/dataset
+│   │   │   └── ingest_status.py           GET /ingest/status
+│   │   └── schemas/                       IntentProfile · LeanCard · Blueprint · RefineRequest (Pydantic)
 │   ├── core/
-│   │   ├── settings.py                    Pydantic Settings — all env in one place
+│   │   ├── settings.py                    Pydantic Settings — single source of env truth
 │   │   ├── logging.py                     Loguru JSON sink + bind_context helper
-│   │   ├── session_store.py               Redis-backed profile + cards + blueprint cache
-│   │   └── llm/
-│   │       ├── azure.py                   AsyncAzureOpenAI JSON-mode helper
-│   │       ├── ollama.py                  AsyncOpenAI pointed at Ollama /v1
-│   │       ├── gateway.py                 provider-neutral chat_json(tier='fast'|'smart')
-│   │       └── prompts.py                 bilingual rec + blueprint system/user prompts
-│   ├── ingestion/celery_app.py            Celery skeleton (Phase 1+ populates beat schedule)
-│   ├── alembic/                           migrations (starts with an empty initial migration)
-│   ├── tests/unit/                        8 tests — settings, logging, health, metrics
-│   ├── Dockerfile                         multi-stage, non-root app user
-│   └── pyproject.toml                     hatchling, ruff, mypy strict, pytest-asyncio
+│   │   ├── session_store.py               Redis-backed profile + cards + refinement stack + saved hash
+│   │   ├── db/                            SQLAlchemy base + ProjectCandidate, Feedback, IngestionRun, DeadLetter
+│   │   ├── embeddings/                    sentence-transformers encoder + async Qdrant helpers
+│   │   ├── llm/
+│   │   │   ├── azure.py                   AsyncAzureOpenAI JSON-mode helper
+│   │   │   ├── ollama.py                  AsyncOpenAI pointed at Ollama /v1
+│   │   │   ├── gateway.py                 Provider-neutral chat_json(tier="fast"|"smart")
+│   │   │   └── prompts.py                 Bilingual rec + grounded-blueprint + refine prompts
+│   │   └── recommendation/
+│   │       ├── retrieve.py                Build filter, ANN top-50, deterministic pre-score → top 20
+│   │       └── context.py                 Fetch real README + full abstract before expansion prompts
+│   ├── ingestion/
+│   │   ├── pipelines/                     hf_papers.py, arxiv.py, github_trending.py (Crawl4AI)
+│   │   ├── normalize.py                   NormalizedCandidate, content_hash, quality_score
+│   │   ├── upsert.py                      Dedup + embed + atomic Postgres + Qdrant upsert
+│   │   ├── runner.py                      Per-run IngestionRun row + per-item dead-letter capture
+│   │   ├── celery_app.py                  Celery app + beat schedule (6h / nightly / weekly)
+│   │   ├── tasks.py                       Celery tasks with autoretry + backoff
+│   │   └── run.py                         One-shot CLI
+│   ├── alembic/                           4 migrations: candidates · feedback · ingestion_runs + dead_letter
+│   ├── tests/                             pytest-asyncio, testcontainers-ready
+│   ├── Dockerfile                         Multi-stage, non-root app user
+│   └── pyproject.toml                     Hatchling + ruff + mypy strict + pytest-asyncio
 ├── frontend/
 │   ├── app/[locale]/
-│   │   ├── layout.tsx                     bilingual html/dir, FOUC-safe theme boot
-│   │   ├── page.tsx                       asymmetric editorial landing
-│   │   ├── onboard/page.tsx               OnboardForm (client)
-│   │   ├── board/[sid]/page.tsx           BoardView (client; fetches cards)
-│   │   └── blueprint/[sid]/[cardId]/      BlueprintView (client; fetches expansion)
+│   │   ├── layout.tsx                     Bilingual html/dir, FOUC-safe theme boot, font pipeline
+│   │   ├── page.tsx                       Asymmetric editorial landing
+│   │   ├── onboard/page.tsx               The only form in the app
+│   │   ├── board/[sid]/page.tsx           Board with sticky RefineBar
+│   │   ├── blueprint/[sid]/[cardId]/      Grounded blueprint page
+│   │   └── saved/page.tsx                 Saved shortlist + Compare-3
 │   ├── components/
-│   │   ├── app-header.tsx                 locale + theme toggles (localStorage)
-│   │   ├── onboard-form.tsx               domain chips · skill · sliders · textarea
-│   │   ├── idea-card.tsx                  lean card with varied masonry heights
-│   │   ├── blueprint-view.tsx             full 13-section artifact
+│   │   ├── app-header.tsx                 Locale + theme toggles + Saved link
+│   │   ├── onboard-form.tsx               Domain chips · skill · sliders · textarea
+│   │   ├── idea-card.tsx                  Lean card with varied masonry heights
+│   │   ├── card-actions.tsx               Thumbs + save, optimistic, localStorage-backed
+│   │   ├── refine-bar.tsx                 Sticky glass panel with Refine + Undo + counter
+│   │   ├── board-view.tsx                 Hydrates the full session on mount
+│   │   ├── saved-view.tsx                 Grid + Compare toggle + side-by-side panel
+│   │   ├── blueprint-view.tsx             13-section artifact renderer
 │   │   └── atmospheric-bg.tsx             SVG noise + corner radial gradient
 │   ├── lib/
-│   │   ├── api.ts                         typed fetch client (IntentProfile → LeanCard → Blueprint)
-│   │   └── fonts.ts                       next/font — Fraunces · DM Sans · Lemonada · JetBrains Mono
-│   ├── messages/{ar,en}.json              all i18n strings
-│   ├── app/globals.css                    manuscript color tokens (light + dark)
-│   ├── middleware.ts                      next-intl locale routing (/ar, /en)
+│   │   ├── api.ts                         Typed fetch client mirroring Pydantic schemas
+│   │   └── fonts.ts                       next/font — Fraunces, DM Sans, Lemonada, JetBrains Mono
+│   ├── messages/{ar,en}.json              All i18n strings
+│   ├── middleware.ts                      next-intl locale routing
 │   └── i18n.ts                            next-intl config
 ├── docker-compose.yml                     postgres · qdrant · redis · backend · celery × 2 · frontend
-├── docs/
-│   └── assets/                            screenshots
-├── .github/workflows/                     backend-ci.yml · frontend-ci.yml
-├── .env.example                           all required env keys, commented
+├── .github/workflows/                     backend-ci.yml, frontend-ci.yml
+├── docs/assets/                           Screenshots used by this README
+├── .env.example                           Every env key, commented
 └── README.md
 ```
-
-
----
-
-## Troubleshooting
-
-**`docker compose up` fails with `port already allocated`**
-Something on the host already uses 5432 / 6379 / 8000. Compose remaps to 5433 / 6380 / 8010 — if those clash too, edit `docker-compose.yml`.
-
-**Qdrant healthcheck fails with `wget: not found`**
-The qdrant image doesn't ship `wget`. Compose uses `bash </dev/tcp/localhost/6333` instead. If that fails in your fork, drop the healthcheck and use `depends_on: qdrant: { condition: service_started }`.
-
-**Celery beat crashes with `Permission denied: 'celerybeat-schedule'`**
-The container runs as the non-root `app` user and `/app` is read-only to that user. Compose already passes `--schedule=/tmp/celerybeat-schedule` to work around it.
-
-**Backend errors with `ModuleNotFoundError: No module named 'core'`**
-You ran `uvicorn` from the repo root. Either `cd backend` first, or `uvicorn api.main:app --app-dir backend`.
-
-**Frontend hot reload is sluggish inside Docker on macOS**
-Known Next.js + macOS bind-mount issue. Run the frontend on the host instead: `cd frontend && corepack pnpm dev`.
-
-**Arabic text renders LTR**
-Confirm you're visiting `/ar` directly (not `/`) and that `<html dir="rtl" lang="ar">` is present in DevTools. If missing, check `frontend/middleware.ts` is loading.
-
-**`Hydration failed because the server rendered HTML didn't match the client`**
-A browser extension (most commonly Grammarly, LastPass, ColorZilla) is injecting attributes onto `<body>`. Already handled: `<body suppressHydrationWarning>`.
-
-**`corepack enable` fails without sudo**
-Use `corepack pnpm <cmd>` directly — it runs pnpm through corepack without needing to enable the global shim.
-
-**Ollama requests from dockerized backend time out**
-Default Ubuntu iptables blocks docker→host traffic. Run the backend on the host (see "Running with Ollama"), or add an allow-rule for your compose bridge to `host:11434`.
-
----
-
-## Tests
-
-```
-backend/  8 tests (async-aware, asyncio_mode=auto)
-frontend/ 3 tests (Vitest + Testing Library, jsdom)
-```
-
-CI runs lint + typecheck + tests on every PR touching `backend/**` or `frontend/**`.
 
 ---
 
 ## Security notes
 
-- Anonymous sessions only — no passwords, no OAuth, no PII beyond an optional email (Phase 6).
-- `.env` is gitignored; `.env.example` ships placeholders only.
+- Anonymous sessions only — no passwords, no OAuth, no PII beyond an optional email (not enabled by default).
+- `.env` is gitignored; `.env.example` ships placeholder values only.
 - CORS locked to `FRONTEND_ORIGIN`, never `*`.
-- All user text (`interests_text`, chat refinements) is length-capped and wrapped in `<untrusted_input>` markers in the system prompt.
-- Pydantic validates everything at the API boundary; Zod-adjacent typing in the frontend.
-- No user-supplied URLs are fetched server-side (SSRF guard).
-
----
-
-## License
-
-Private / TBD.
+- Free-text fields (`interests_text`, refine messages) are length-capped at 500 characters and wrapped in `<untrusted_input>` markers inside the system prompt.
+- Pydantic validates every payload at the API boundary; TypeScript types mirror the shape on the client.
+- No user-supplied URLs are fetched server-side (SSRF guard). The only outbound URLs the ingestion layer reaches are arXiv, Hugging Face, and GitHub — all over HTTPS with an allow-list.
+- Dependencies scanned by `pip-audit` and `npm audit` in CI; Dependabot watches `main`.
 
 ---
 
 ## Credits
 
-Built by Hesham Haroon. Part of a broader Arabic-first AI systems portfolio — see `al-muwatta-ai` and `dhakira` for related work.
+Built by **Hesham Haroon**. Part of an Arabic-first AI systems portfolio — see [`al-muwatta-ai`](https://github.com/h9-tec) and [`dhakira`](https://github.com/h9-tec) for related work.
+
+## License
+
+Private / TBD.
