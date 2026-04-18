@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from api.routes import recommendations
 from core.logging import configure_logging
 from core.settings import get_settings
 
@@ -34,6 +35,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
+
+    app.include_router(recommendations.router)
 
     @app.get("/")
     async def root() -> dict[str, str]:
