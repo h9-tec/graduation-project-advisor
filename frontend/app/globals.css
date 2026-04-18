@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #f6efe1;
+  --color-surface: #fbf6ea;
+  --color-elevated: #ffffff;
+  --color-text-primary: #1a1612;
+  --color-text-muted: #6a5f52;
+  --color-border-subtle: #e6dcc6;
+  --color-accent: #c48a1e;
+  --color-accent-strong: #8a5c10;
+  --color-signal-code: #2f6b4f;
+  --color-signal-paper: #8b2e2e;
+  --color-signal-warn: #b84a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-canvas: #14110c;
+    --color-surface: #1f1a12;
+    --color-elevated: #26201a;
+    --color-text-primary: #f0e6d0;
+    --color-text-muted: #a89c82;
+    --color-border-subtle: #3a3224;
+    --color-accent: #e0a840;
+    --color-accent-strong: #c48a1e;
+  }
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html {
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-body-latin), system-ui, sans-serif;
+}
+
+html[lang="ar"] {
+  font-family: var(--font-display-arabic), system-ui, sans-serif;
+  line-height: 1.9;
+}
+
+html[lang="en"] {
+  line-height: 1.55;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+/* Atmospheric grain background (used by AtmosphericBg component) */
+.grain {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.06'/></svg>");
+  background-repeat: repeat;
+}
