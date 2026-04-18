@@ -1,0 +1,33 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      - name: Lint
+        run: ruff check .
+      - name: Format check
+        run: ruff format --check .
+      - name: Typecheck
+        run: mypy api core ingestion
+      - name: Unit tests
+        run: pytest tests/unit -v --cov=api --cov=core --cov=ingestion --cov-report=term-missing
