@@ -361,8 +361,8 @@ graduation_project/
 | **1. Ingestion backbone** | Done | HF Daily Papers (replaces PWC) + arXiv REST + GitHub Trending via Crawl4AI → multilingual embeddings → Qdrant. 997 records, 3 sources. |
 | **2. Linking + corpus enrichment** | Done | Paper↔code links via HF Daily's `githubRepo`, abstract regex-scan for GitHub URLs on arXiv records, GitHub REST for trending repo metadata. `ai_summary` + `ai_keywords` come pre-generated from HF. |
 | **3. True RAG pipeline** | Done | `POST /recommendations`: filter → Qdrant top-50 → deterministic pre-score → `gpt-4o-mini` re-rank with id-validation → cards. Expand path injects the retrieved paper/repo URL into the blueprint output. |
-| **4. Chat refinement** | Next | "more RL, less infra" → profile diff → new board over the same session, with an "undo last refinement" action |
-| **5. Feedback + save** | Planned | Thumbs up/down, saved cards, compare-3 view, eval-set builder from real feedback |
+| **4. Chat refinement** | Done | "more RL, less infra" → LLM-diffed profile → new board in place. `POST /sessions/{sid}/refine` + `/refine/undo` over a 15-per-session cap, Redis-backed profile stack, sticky-bottom RefineBar with Undo on the frontend. |
+| **5. Feedback + save** | Next | Thumbs up/down, saved cards, compare-3 view, eval-set builder from real feedback |
 | **6. Scheduled ingest at scale** | Planned | Celery beat: nightly arXiv delta, weekly GitHub trending, daily HF Daily refresh, outbox retries, dead-letter table |
 | **7. Polish + production** | Planned | Caddy TLS, VPS deploy, UptimeRobot, LLM eval harness with recall@5 regression guard |
 
