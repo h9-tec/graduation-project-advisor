@@ -134,7 +134,8 @@ Three clean subsystems with narrow interfaces:
 Requirements: Docker 27+, Docker Compose v2. Optional: Python 3.12 and Node 22+ for running backend/frontend outside containers.
 
 ```bash
-git clone <repo-url> graduation_project
+git clone https://github.com/h9-tec/graduation-project-advisor.git graduation_project
+# or over SSH:  git clone git@github.com:h9-tec/graduation-project-advisor.git graduation_project
 cd graduation_project
 cp .env.example .env
 # Edit .env and paste your Azure OpenAI endpoint + key (or flip LLM_PROVIDER=ollama)
