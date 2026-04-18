@@ -1,0 +1,37 @@
+{
+  "name": "grad-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "15.1.3",
+    "next-intl": "3.26.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@tailwindcss/postcss": "4.0.0-beta.9",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.1.0",
+    "@types/node": "22.10.5",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "autoprefixer": "10.4.20",
+    "jsdom": "26.0.0",
+    "postcss": "8.4.49",
+    "tailwindcss": "4.0.0-beta.9",
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  },
+  "packageManager": "pnpm@9.15.2"
+}
