@@ -3,7 +3,6 @@ import { Fraunces, DM_Sans, Lemonada, JetBrains_Mono } from "next/font/google";
 export const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-display-latin",
-  axes: ["opsz"],
   weight: ["200", "400", "800"],
   display: "swap",
 });
