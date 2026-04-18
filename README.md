@@ -8,9 +8,7 @@ Bilingual from day one. Arabic-first UX, English-parity toggle, full RTL. Locall
   <img src="docs/assets/landing-ar-dark.png" alt="Arabic landing page, dark manuscript theme" width="820" />
 </p>
 
-> **Status:** Phase 0 foundations **+** functional LLM-backed MVP shipped. Retrieval over live arXiv / PWC / GitHub (Phase 1–2) is next.
-> **Design spec:** [`docs/superpowers/specs/2026-04-17-graduation-project-advisor-design.md`](docs/superpowers/specs/2026-04-17-graduation-project-advisor-design.md)
-> **Implementation plan (Phase 0):** [`docs/superpowers/plans/2026-04-17-phase-0-foundations.md`](docs/superpowers/plans/2026-04-17-phase-0-foundations.md)
+> **Status:** Scaffold and functional LLM-backed UI shipped · **ingestion pipeline shipped** — 997 records in Qdrant across 3 sources, retrieval-first RAG recommender, blueprint output grounded to the real retrieved paper and repo.
 
 ---
 
@@ -22,7 +20,17 @@ Every senior-year CS student in Egypt hits the same wall: *what should my gradua
 
 One form. Five minutes. Five grounded project ideas, each with a research hook and a stack hook, ranked for your skill level and time budget. Any card expands — with one click — into a full production-grade blueprint: problem statement, scope boundaries, suggested architecture, milestones by week, datasets, evaluation metrics, risks, and how to stand out. Bilingual reasoning (technical terms stay English, the "why this fits you" is in the student's language).
 
-Under the hood it's a classic indexed-RAG pipeline *in progress* (Qdrant + multilingual embeddings + LLM re-rank) wrapped in a clean-theme editorial UI that deliberately doesn't look like another ChatGPT clone.
+Under the hood it's an **indexed-RAG pipeline** over a live corpus:
+
+- **997 real papers + repos** in Qdrant (695 HF Daily Papers · 290 arXiv · 12 GitHub Trending)
+- **multilingual embeddings** (`paraphrase-multilingual-MiniLM-L12-v2`, 384-d) so an Arabic query retrieves English papers natively
+- **deterministic pre-score** before any LLM sees the candidates (0.5 · cosine + 0.2 · quality + 0.1 · recency + 0.1 · has-code + 0.1 · difficulty-match)
+- **LLM re-rank with anti-hallucination ids** — the re-ranker is constrained to pick from the retrieved set; any fabricated id is dropped
+- **blueprint URL injection** — the expand endpoint prepends the retrieved paper's real arxiv/github URL to the blueprint's reference list, so every supervisor-ready artifact cites something that genuinely exists
+
+Wrapped in a clean-theme editorial UI that deliberately doesn't look like another ChatGPT clone.
+
+> **Why not Papers-With-Code?** Meta sunset PWC on 2025-07-24. We pivoted to **HuggingFace Daily Papers** — which already carries `githubRepo`, `ai_summary`, and `ai_keywords` per record — plus arXiv (REST) and GitHub Trending (scraped via Crawl4AI). Addendum spec linked above.
 
 ---
 
@@ -53,31 +61,54 @@ Every blueprint has: problem statement, why it matters, in-scope / out-of-scope,
 ## Architecture
 
 ```
-┌────────────────────┐   REST    ┌──────────────────────┐   HTTP/gRPC   ┌──────────┐
-│  Next.js 15 web    │◄────────► │   FastAPI recommender│◄────────────► │  Qdrant  │
-│  ar / en + RTL     │  JSON     │   stateless          │               │  (1.16)  │
-└────────────────────┘           └──────────┬───────────┘               └──────────┘
-                                            │
-                            ┌───────────────┼────────────────┐
-                            ▼               ▼                ▼
+ ┌──────────────────────────── request path ────────────────────────────┐
+
+ ┌────────────────────┐   REST     ┌──────────────────────┐   ANN +     ┌──────────┐
+ │  Next.js 15 web    │◄─────────► │   FastAPI recommender│◄─────────── │  Qdrant  │
+ │  ar / en + RTL     │   JSON     │   stateless          │  top-50     │  997 pts │
+ └────────────────────┘            └───────┬──────────────┘  filter     └──────────┘
+         ▲                                 │
+         │                                 ▼
+         │                       ┌──────────────────┐
+         │                       │  pre-score →     │
+         │                       │  top 20 → LLM    │
+         │                       │  re-rank (guard: │
+         │                       │  ids ∈ retrieved)│
+         │                       └───────┬──────────┘
+         │                               ▼
+         │                     ┌──────────────────┐
+         │                     │  LeanCard[5]     │
+         │                     │  with arxiv_url  │
+         │                     │  + github_url    │
+         │                     └──────────────────┘
+
+ ┌───────────────────────── ingestion path ─────────────────────────────┐
+
+  HF Daily Papers API ───────┐
+  arXiv REST (feedparser)    ├──► normalize (dedup by arxiv_id / gh_url)
+  GitHub Trending (Crawl4AI) ─┘     │
+                                    ▼
+                          ┌─ multilingual MiniLM embedder ─┐
+                          │    (local CPU, 384-dim)        │
+                          └───────────┬────────────────────┘
+                                      ▼
+                     ┌─ Postgres (ProjectCandidate rows)   ─┐
+                     │  + Qdrant payload-indexed points    │
+                     └──────────────────────────────────────┘
+
+ ┌────────────────────── session + infra plane ─────────────────────────┐
+
                       ┌──────────┐   ┌────────────┐   ┌─────────────────┐
                       │ Postgres │   │   Redis    │   │  LLM gateway    │
-                      │ sessions │   │ sessions + │   │                 │
-                      │ feedback │   │ rate limit │   │  azure  │ ollama│
+                      │ candidates│  │ sessions + │   │                 │
+                      │ + users  │   │ card cache │   │  azure  │ ollama│
                       └──────────┘   └────────────┘   └─────────────────┘
-                            ▲
-                            │ populates (Phase 1+)
-                   ┌────────┴─────────┐
-                   │ Celery workers   │
-                   │ arXiv · HF       │
-                   │ PWC · GitHub     │
-                   └──────────────────┘
 ```
 
 Three clean subsystems with narrow interfaces:
 
-1. **Ingestion** *(Celery beat, nightly, Phase 1+)* — arXiv + HF Papers + Papers-With-Code + GitHub → normalized `ProjectCandidate` records → multilingual embeddings → Qdrant.
-2. **Recommender** *(FastAPI, stateless)* — form → filter → retrieval → LLM re-rank → lean cards. One-click blueprint expansion with the stronger LLM tier. Redis-backed session cache.
+1. **Ingestion** — three pipelines land normalized `ProjectCandidate` records into Postgres + Qdrant with multilingual embeddings. HF Daily Papers carries pre-generated `ai_summary` and `ai_keywords` so we skip an LLM enrichment call entirely for those records. arXiv fills the long tail. Crawl4AI scrapes the weekly Python trending page (GitHub has no trending API).
+2. **Recommender** *(FastAPI, stateless)* — form → Qdrant filter+ANN → deterministic pre-score → LLM re-rank with id-validation → lean cards. One-click blueprint expansion injects the retrieved paper's real arxiv/github URL into the output. Redis-backed session cache.
 3. **Web app** *(Next.js 15 App Router)* — landing + onboarding + board + blueprint. Bilingual / RTL. Light, dark, and system themes with FOUC-safe boot.
 
 ---
@@ -313,8 +344,7 @@ graduation_project/
 │   └── i18n.ts                            next-intl config
 ├── docker-compose.yml                     postgres · qdrant · redis · backend · celery × 2 · frontend
 ├── docs/
-│   ├── assets/                            screenshots
-│   └── superpowers/{specs,plans}/         design spec + Phase 0 plan
+│   └── assets/                            screenshots
 ├── .github/workflows/                     backend-ci.yml · frontend-ci.yml
 ├── .env.example                           all required env keys, commented
 └── README.md

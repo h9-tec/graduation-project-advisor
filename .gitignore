@@ -49,3 +49,8 @@ test-results/
 # Stray screenshots from dev sessions
 /ar-board.png
 /en-board.png
+
+# Internal planning docs — not for public repo
+docs/superpowers/
+docs/plans/
+docs/specs/

@@ -3,7 +3,7 @@
 /* ------------------------------------------------------------------
    Manuscript palette — semantic tokens only. Dark/light are toggled
    via data-theme="dark|light" on <html>; no attribute means follow
-   the system. Values mirror docs/superpowers/specs §8.3.
+   the system. Values mirror docs/specs §8.3.
    ------------------------------------------------------------------ */
 :root {
   --color-canvas: #f6efe1;
