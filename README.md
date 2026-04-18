@@ -93,6 +93,62 @@ cd frontend
 corepack pnpm lint && corepack pnpm typecheck && corepack pnpm build
 ```
 
+## LLM providers
+
+Default is Azure OpenAI (fast + smart deployments). A local Ollama
+fallback is wired through the same gateway — flip `LLM_PROVIDER=ollama`
+in `.env`.
+
+**Fast tier** — `llama3.2:3b` (1.9 GB, ~13 s / 5 cards on an RTX 5060).
+**Smart tier** — `aya:8b` (4.6 GB, multilingual incl Arabic, ~50 s / blueprint).
+
+Both are already in `~/.ollama/models` on this machine. Pull others with:
+
+```bash
+ollama pull llama3.2:3b
+ollama pull aya:8b
+```
+
+### Running with Ollama
+
+**Option A — backend on host (recommended for local dev)**
+
+```bash
+# Stop the dockerized backend
+docker compose stop backend
+
+# Start Ollama bound to localhost
+OLLAMA_HOST=127.0.0.1:11434 ollama serve &
+
+# Run uvicorn on the host, pointing at the compose-exposed infra ports
+cd backend && source ../.venv/bin/activate
+DATABASE_URL="postgresql+asyncpg://grad:grad@localhost:5433/grad" \
+REDIS_URL="redis://localhost:6380/0" \
+QDRANT_URL="http://localhost:6333" \
+OLLAMA_URL="http://localhost:11434" \
+LLM_PROVIDER=ollama \
+FRONTEND_ORIGIN="http://localhost:3000" \
+uvicorn api.main:app --port 8010 --reload
+```
+
+**Option B — backend in docker with Ollama in docker**
+
+Only works if the host's firewall allows docker→host traffic or Ollama
+is inside the same compose network. The default compose file does NOT
+ship an Ollama container (the image is ~1.8 GB). To add one, uncomment
+the commented service block in `docker-compose.yml`.
+
+If your host allows docker→host traffic and Ollama runs on the host,
+set `OLLAMA_URL=http://host.docker.internal:11434` in `.env` and make
+sure `ollama serve` is bound to `0.0.0.0:11434`:
+
+```bash
+OLLAMA_HOST=0.0.0.0:11434 ollama serve &
+```
+
+This machine has iptables rules (unmodifiable without sudo) that drop
+docker→host traffic, so Option A is the tested path here.
+
 ## Layout
 
 ```

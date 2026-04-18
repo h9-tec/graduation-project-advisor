@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from api.schemas.blueprint import Blueprint, BlueprintResponse
 from api.schemas.intent import IntentProfile
 from api.schemas.recommendation import LeanCard, RecommendationsResponse
-from core.llm.azure import chat_json
+from core.llm.gateway import chat_json
 from core.llm.prompts import (
     blueprint_system_prompt,
     blueprint_user_prompt,
@@ -22,7 +22,6 @@ from core.session_store import (
     save_cards,
     save_profile,
 )
-from core.settings import get_settings
 
 router = APIRouter(prefix="/api/v1", tags=["recommendations"])
 
@@ -34,7 +33,6 @@ def _slug(value: str) -> str:
 
 @router.post("/recommendations", response_model=RecommendationsResponse)
 async def create_recommendations(profile: IntentProfile) -> RecommendationsResponse:
-    settings = get_settings()
     session_id = uuid.uuid4().hex
 
     await save_profile(session_id, profile.model_dump())
@@ -44,7 +42,7 @@ async def create_recommendations(profile: IntentProfile) -> RecommendationsRespo
 
     try:
         raw = await chat_json(
-            deployment=settings.azure_openai_deployment_fast,
+            tier="fast",
             system=system,
             user=user,
             max_tokens=1600,
@@ -98,7 +96,6 @@ async def list_cards(session_id: str) -> list[LeanCard]:
     response_model=BlueprintResponse,
 )
 async def expand_card(session_id: str, card_id: str) -> BlueprintResponse:
-    settings = get_settings()
     cards = await load_cards(session_id)
     profile = await load_profile(session_id)
     if cards is None or profile is None:
@@ -114,7 +111,7 @@ async def expand_card(session_id: str, card_id: str) -> BlueprintResponse:
 
     try:
         raw = await chat_json(
-            deployment=settings.azure_openai_deployment_smart,
+            tier="smart",
             system=system,
             user=user,
             max_tokens=2800,

@@ -48,6 +48,12 @@ services:
       timeout: 3s
       retries: 10
 
+  # NOTE: Ollama runs on the HOST (not in compose) because the host
+  # already has the binary + 76 GB of pulled models at ~/.ollama.
+  # The backend reaches it via host.docker.internal — see extra_hosts below.
+  # If you don't have host Ollama, start the compose variant documented
+  # in README.md under "Ollama: compose variant".
+
   backend:
     build:
       context: ./backend
@@ -66,6 +72,8 @@ services:
       postgres: { condition: service_healthy }
       qdrant:   { condition: service_healthy }
       redis:    { condition: service_healthy }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   celery-worker:
     build:
@@ -81,6 +89,8 @@ services:
       QDRANT_URL: http://qdrant:6333
     depends_on:
       redis: { condition: service_healthy }
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   celery-beat:
     build:

@@ -15,6 +15,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         "AZURE_OPENAI_API_VERSION",
         "AZURE_OPENAI_DEPLOYMENT_FAST", "AZURE_OPENAI_DEPLOYMENT_SMART",
         "LLM_PROVIDER", "EMBEDDING_MODEL",
+        "OLLAMA_URL", "OLLAMA_MODEL_FAST", "OLLAMA_MODEL_SMART",
         "SESSION_COOKIE_SECRET", "SESSION_COOKIE_NAME",
         "FRONTEND_ORIGIN",
     ]:

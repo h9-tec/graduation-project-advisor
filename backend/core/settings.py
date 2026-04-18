@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     azure_openai_deployment_smart: str = "gpt-4o"
     llm_provider: Literal["azure", "ollama"] = "azure"
 
+    ollama_url: str = "http://host.docker.internal:11434"
+    ollama_model_fast: str = "llama3.2:3b"
+    ollama_model_smart: str = "aya:8b"
+
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
     session_cookie_secret: str = Field(default="dev-only-secret-change-in-prod")
