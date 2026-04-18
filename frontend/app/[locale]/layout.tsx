@@ -40,7 +40,7 @@ export default async function LocaleLayout({
       dir={dir}
       className={`${fraunces.variable} ${dmSans.variable} ${lemonada.variable} ${jetbrainsMono.variable}`}
     >
-      <body>
+      <body suppressHydrationWarning>
         <AtmosphericBg />
         <NextIntlClientProvider messages={messages}>
           <main className="relative mx-auto max-w-6xl px-6 py-16">{children}</main>
