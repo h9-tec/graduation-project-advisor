@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { fetchCards, type LeanCard, type RefineResponse } from "@/lib/api";
+import { fetchSession, type LeanCard, type RefineResponse } from "@/lib/api";
 import { IdeaCard } from "@/components/idea-card";
 import { RefineBar } from "@/components/refine-bar";
 
@@ -29,9 +29,12 @@ export function BoardView({
       // ignore
     }
     let cancelled = false;
-    fetchCards(sessionId)
-      .then((c) => {
-        if (!cancelled) setCards(c);
+    fetchSession(sessionId)
+      .then((s) => {
+        if (cancelled) return;
+        setCards(s.cards);
+        setRefinementCount(s.refinement_count);
+        setHistoryDepth(s.history_depth);
       })
       .catch((e: unknown) => {
         if (!cancelled) setErr(e instanceof Error ? e.message : "error");

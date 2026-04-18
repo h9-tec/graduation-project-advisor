@@ -101,6 +101,18 @@ export async function fetchCards(sessionId: string): Promise<LeanCard[]> {
   return getJSON(`/api/v1/sessions/${sessionId}/cards`);
 }
 
+export type SessionStatus = {
+  session_id: string;
+  cards: LeanCard[];
+  refinement_count: number;
+  history_depth: number;
+  max_refinements: number;
+};
+
+export async function fetchSession(sessionId: string): Promise<SessionStatus> {
+  return getJSON(`/api/v1/sessions/${sessionId}`);
+}
+
 export async function expandCard(
   sessionId: string,
   cardId: string,

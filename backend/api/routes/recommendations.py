@@ -36,6 +36,16 @@ from core.session_store import (
     save_profile,
 )
 
+from pydantic import BaseModel
+
+
+class SessionStatus(BaseModel):
+    session_id: str
+    cards: list[LeanCard]
+    refinement_count: int
+    history_depth: int
+    max_refinements: int
+
 router = APIRouter(prefix="/api/v1", tags=["recommendations"])
 
 # Minimum Qdrant hits before we trust retrieval; below this we fall back to pure LLM.
@@ -199,6 +209,25 @@ async def list_cards(session_id: str) -> list[LeanCard]:
     if cards is None:
         raise HTTPException(status_code=404, detail="Session not found or expired")
     return [LeanCard(**c) for c in cards]
+
+
+@router.get("/sessions/{session_id}", response_model=SessionStatus)
+async def get_session_status(session_id: str) -> SessionStatus:
+    """Full session state — cards + refinement_count + history_depth.
+
+    Board mounts hit this so the RefineBar shows the authoritative counter
+    instead of the per-component default (0) on every page load.
+    """
+    cards = await load_cards(session_id)
+    if cards is None:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    return SessionStatus(
+        session_id=session_id,
+        cards=[LeanCard(**c) for c in cards],
+        refinement_count=await get_refine_count(session_id),
+        history_depth=await profile_history_depth(session_id),
+        max_refinements=MAX_REFINEMENTS_PER_SESSION,
+    )
 
 
 @router.post(
