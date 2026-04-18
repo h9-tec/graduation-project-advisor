@@ -358,12 +358,13 @@ graduation_project/
 |---|---|---|
 | **0. Foundations** | Done | Repo scaffold, compose, FastAPI skeleton, bilingual Next.js, CI |
 | **+. Functional MVP** | Done | Azure + Ollama LLM gateway, onboarding form, LLM-backed board + blueprint |
-| **1. Ingestion backbone** | Next | arXiv (OAI-PMH) + HF Papers + embeddings → Qdrant |
-| **2. Linking + corpus** | Planned | PWC paper↔repo linking, GitHub search API, LLM enrichment |
-| **3. True RAG pipeline** | Planned | Deterministic pre-score → LLM re-rank over retrieved candidates |
-| **4. Chat refinement** | Planned | "more RL, less infra" → profile diff → new board |
-| **5. Feedback + save** | Planned | Thumbs up/down, saved cards, compare-3 view |
-| **6. Polish + production** | Planned | Caddy TLS, VPS deploy, UptimeRobot, LLM eval harness |
+| **1. Ingestion backbone** | Done | HF Daily Papers (replaces PWC) + arXiv REST + GitHub Trending via Crawl4AI → multilingual embeddings → Qdrant. 997 records, 3 sources. |
+| **2. Linking + corpus enrichment** | Done | Paper↔code links via HF Daily's `githubRepo`, abstract regex-scan for GitHub URLs on arXiv records, GitHub REST for trending repo metadata. `ai_summary` + `ai_keywords` come pre-generated from HF. |
+| **3. True RAG pipeline** | Done | `POST /recommendations`: filter → Qdrant top-50 → deterministic pre-score → `gpt-4o-mini` re-rank with id-validation → cards. Expand path injects the retrieved paper/repo URL into the blueprint output. |
+| **4. Chat refinement** | Next | "more RL, less infra" → profile diff → new board over the same session, with an "undo last refinement" action |
+| **5. Feedback + save** | Planned | Thumbs up/down, saved cards, compare-3 view, eval-set builder from real feedback |
+| **6. Scheduled ingest at scale** | Planned | Celery beat: nightly arXiv delta, weekly GitHub trending, daily HF Daily refresh, outbox retries, dead-letter table |
+| **7. Polish + production** | Planned | Caddy TLS, VPS deploy, UptimeRobot, LLM eval harness with recall@5 regression guard |
 
 ---
 
