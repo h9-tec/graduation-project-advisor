@@ -78,11 +78,23 @@ h1, h2, h3 {
   letter-spacing: -0.01em;
 }
 
+/* Arabic display typography — Lemonada at 700+ weight needs generous
+   vertical room at large sizes, otherwise descenders on glyphs like
+   ج / ح / خ / ع collide with the line above. The !important defeats
+   Tailwind's arbitrary `leading-[...]` classes inside the Arabic locale
+   without forcing every component to carry a conditional class. */
 html[lang="ar"] h1,
 html[lang="ar"] h2,
 html[lang="ar"] h3 {
   font-family: var(--font-display-arabic), var(--font-display-latin), system-ui, sans-serif;
   letter-spacing: 0;
+  line-height: 1.5 !important;
+  padding-block: 0.1em;
+}
+
+/* Same story for Arabic body text inside large hero paragraphs */
+html[lang="ar"] p {
+  line-height: 1.9;
 }
 
 .font-mono,
